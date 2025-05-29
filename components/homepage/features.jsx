@@ -1,28 +1,35 @@
 import React from 'react'
-import { FaCheckCircle, FaTasks, FaRegCalendarAlt, FaStickyNote, FaBullseye, FaBook } from 'react-icons/fa'
+import {
+  FaCheckCircle,
+  FaTasks,
+  FaRegCalendarAlt,
+  FaStickyNote,
+  FaBullseye,
+  FaBook
+} from 'react-icons/fa'
 
 const features = [
-    { icon: <FaTasks className="text-blue-500 text-xl" />, label: 'Todo' },
-    { icon: <FaCheckCircle className="text-green-500 text-xl" />, label: 'Habits' },
-    { icon: <FaBook className="text-purple-500 text-xl" />, label: 'Docs' },
-    { icon: <FaStickyNote className="text-yellow-500 text-xl" />, label: 'Notes' },
-    { icon: <FaBullseye className="text-pink-500 text-xl" />, label: 'Goals' },
-    { icon: <FaRegCalendarAlt className="text-indigo-500 text-xl" />, label: 'Calendar' },
+  { icon: <FaCheckCircle className="text-green-600 text-xl" />, label: 'Habits' },
+  { icon: <FaTasks className="text-blue-600 text-xl" />, label: 'Todo' },
+  { icon: <FaBullseye className="text-pink-600 text-xl" />, label: 'Goals' },
+  { icon: <FaRegCalendarAlt className="text-indigo-600 text-xl" />, label: 'Calendar' },
+  { icon: <FaStickyNote className="text-yellow-500 text-xl" />, label: 'Notes' },
+  { icon: <FaBook className="text-purple-600 text-xl" />, label: 'Docs' },
 ]
 
 const Features = () => {
-    return (
-        <div className="container mx-auto px-6 py-5 bg-white rounded-xl shadow-lg w-[85vw] mb-10">
-            <ul className="flex flex-wrap items-center justify-evenly gap-8">
-                {features.map((feature, idx) => (
-                    <li key={feature.label} className="flex flex-col items-center space-y-2">
-                        {feature.icon}
-                        <span className="text-base font-small text-gray-700">{feature.label}</span>
-                    </li>
-                ))}
-            </ul>
-        </div>
-    )
+  return (
+    <section className="w-[85vw] mx-auto my-10 px-6 py-5 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100">
+      <ul className="flex flex-wrap items-center justify-evenly gap-8">
+        {features.map((feature) => (
+          <li key={feature.label} className="flex flex-col items-center space-y-2">
+            {feature.icon}
+            <span className="text-sm font-medium text-gray-800">{feature.label}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
 }
 
 export default Features
