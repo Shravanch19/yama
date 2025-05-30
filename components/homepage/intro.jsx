@@ -29,7 +29,7 @@ const Intro = () => {
             {/* Avatar Section */}
             <div className="relative group">
                 <img
-                    src="https://img.freepik.com/premium-vector/boy-with-blue-hoodie-blue-hoodie-with-hoodie-it_1230457-42660.jpg?semt=ais_hybrid&w=740"
+                    src="https://w0.peakpx.com/wallpaper/548/716/HD-wallpaper-noragami-yato-anime-anime-art-yato-noragami-anime.jpg"
                     alt="User Avatar"
                     className="w-40 h-40 rounded-full border-4 border-cyan-400 shadow-lg object-cover group-hover:scale-105 transition-transform duration-300"
                 />
