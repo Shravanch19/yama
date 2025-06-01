@@ -2,11 +2,15 @@
 import React, { useState } from "react";
 
 const Add_Project = () => {
-    const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState({
+    const [showForm, setShowForm] = useState(false);    const [form, setForm] = useState({
         title: "",
-        NoOFmodules: 0,
+        description: "",
+        startDate: new Date().toISOString().split('T')[0],
+        deadline: "",
+        status: "Planning",
         moduleKey: [],
+        team: [],
+        tags: []
     });
 
     const handleChange = (e) => {
@@ -15,22 +19,41 @@ const Add_Project = () => {
             ...prev,
             [name]: name === "NoOFmodules" ? parseInt(value) : value,
         }));
-    };
-
-    const handleExit = () => {
+    };    const handleExit = () => {
         // Reset form fields when exiting
         setForm({
             title: "",
-            NoOFmodules: 0,
+            description: "",
+            startDate: new Date().toISOString().split('T')[0],
+            deadline: "",
+            status: "Planning",
             moduleKey: [],
+            team: [],
+            tags: []
         });
-    };
-
-    const handleSubmit = (e) => {
+    };    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("Project Added:", form);
-        alert("Project Added Successfully!");
-        setShowForm(false);
+        try {
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(form),
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                alert("Project Added Successfully!");
+                handleExit();
+                setShowForm(false);
+            } else {
+                throw new Error(data.message || 'Error creating project');
+            }
+        } catch (error) {
+            alert('Failed to add project: ' + error.message);
+        }
     };
 
     return (
@@ -82,22 +105,66 @@ const Add_Project = () => {
                                 className="w-full p-2 rounded bg-gray-700 text-purple-100"
                                 required
                             />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-purple-200 mb-2" htmlFor="NoOFmodules">
-                                Number of Modules
+                        </div>                        <div className="mb-4">
+                            <label className="block text-purple-200 mb-2" htmlFor="description">
+                                Description
                             </label>
-                            <input
-                                type="number"
-                                name="NoOFmodules"
-                                value={form.NoOFmodules}
+                            <textarea
+                                name="description"
+                                value={form.description}
                                 onChange={handleChange}
                                 className="w-full p-2 rounded bg-gray-700 text-purple-100"
+                                rows="3"
+                                required
                             />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-purple-200 mb-2" htmlFor="startDate">
+                                    Start Date
+                                </label>
+                                <input
+                                    type="date"
+                                    name="startDate"
+                                    value={form.startDate}
+                                    onChange={handleChange}
+                                    className="w-full p-2 rounded bg-gray-700 text-purple-100"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-purple-200 mb-2" htmlFor="deadline">
+                                    Deadline
+                                </label>
+                                <input
+                                    type="date"
+                                    name="deadline"
+                                    value={form.deadline}
+                                    onChange={handleChange}
+                                    className="w-full p-2 rounded bg-gray-700 text-purple-100"
+                                    required
+                                />
+                            </div>
+                        </div>                        <div className="mb-4">
+                            <label className="block text-purple-200 mb-2" htmlFor="status">
+                                Status
+                            </label>
+                            <select
+                                name="status"
+                                value={form.status}
+                                onChange={handleChange}
+                                className="w-full p-2 rounded bg-gray-700 text-purple-100"
+                                required
+                            >
+                                <option value="Planning">Planning</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Completed">Completed</option>
+                            </select>
                         </div>
                         <div className="mb-4">
                             <label className="block text-purple-200 mb-2" htmlFor="moduleKey">
-                                Module Key (comma separated)
+                                Project Modules (comma separated)
                             </label>
                             <input
                                 type="text"
