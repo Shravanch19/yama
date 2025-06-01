@@ -1,6 +1,6 @@
 import React from 'react'
 import ProjectsUI from '@/components/GoalPage/projects/projectsUI'
-import HealthUI from '@/components/GoalPage/health/healthUI'
+// import HealthUI from '@/components/GoalPage/health/healthUI'
 import LearningUI from '@/components/GoalPage/learnings/learningUI'
 
 const GoalsPage = () => {

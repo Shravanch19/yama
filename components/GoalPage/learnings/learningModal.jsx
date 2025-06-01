@@ -1,11 +1,14 @@
 "use client";
 import React, { useState } from "react";
+// import database from "@/models/data"
+
+
 
 const Add_Learning = () => {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({
         title: "",
-        NoOFChapters: 0,
+        NoOfChapters: 0,
         ChaptersName: [],
     });
 
@@ -13,24 +16,38 @@ const Add_Learning = () => {
         const { name, value } = e.target;
         setForm((prev) => ({
             ...prev,
-            [name]: name === "NoOFChapters" ? parseInt(value) : value,
+            [name]: name === "NoOfChapters" ? parseInt(value) : value,
         }));
     };
 
     const handleExit = () => {
-        // Reset form fields when exiting
+        setShowForm(false);
         setForm({
             title: "",
-            NoOFChapters: 0,
+            NoOfChapters: 0,
             ChaptersName: [],
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        handleExit();
         console.log("Learning Added:", form);
         alert("Learning Added Successfully!");
-        setShowForm(false);
+        try {
+            await fetch("/api/learnings", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(form),
+            });
+            
+        } catch (error) {
+            console.error("Error adding learning:", error);
+            alert("Failed to add learning. Please try again.");
+            
+        }
     };
 
     return (
@@ -52,7 +69,7 @@ const Add_Learning = () => {
                             <button
                                 type="button"
                                 className=" text-blue-200 hover:text-blue-400"
-                                onClick={() => {handleExit(); setShowForm(false)}}
+                                onClick={() => handleExit()}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -89,8 +106,8 @@ const Add_Learning = () => {
                             </label>
                             <input
                                 type="number"
-                                name="NoOFChapters"
-                                value={form.NoOFChapters}
+                                name="NoOfChapters"
+                                value={form.NoOfChapters}
                                 onChange={handleChange}
                                 className="w-full p-2 rounded bg-gray-700 text-blue-100"
                             />
