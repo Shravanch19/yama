@@ -3,22 +3,26 @@ import React, { useState } from "react";
 
 const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
     const [form, setForm] = useState({
         title: learning.title,
         NoOfChapters: learning.NoOfChapters,
         ChaptersName: learning.ChaptersName,
         status: learning.status,
         progress: learning.progress,
+        currentChapterIndex: learning.currentChapterIndex,
+        completedChapters: learning.completedChapters,
         notes: learning.notes || "",
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+    
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm(prev => ({
             ...prev,
-            [name]: name === "NoOfChapters" ? parseInt(value) : value,
+            [name]: name === "NoOfChapters" ? (parseInt(value) || 0) : value ,
         }));
     };
 
@@ -45,12 +49,21 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
         setError("");
 
         try {
-            const response = await fetch(`/api/learnings/${learning._id}`, {
-                method: 'PUT',
+            if(form.status == 'Completed') {
+                form.completedChapters = form.NoOfChapters;
+                form.progress = Array(form.NoOfChapters).fill(1);
+                form.currentChapterIndex = form.NoOfChapters - 1;
+            } else {
+                form.completedChapters = 0;
+                form.progress = Array(form.NoOfChapters).fill(0);
+                form.currentChapterIndex = 0;
+            }
+            const response = await fetch('/api/learnings', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, task: 'updateLearning', learningId: learning._id }),
             });
 
             if (!response.ok) {
@@ -67,15 +80,15 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
         }
     };
 
-    const handleChapterProgress = async (chapterIndex, uncomplete = false) => {
+    const handleChapterProgress = async (chapterIndex, isComplete = false) => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/learnings/${learning._id}/progress`, {
-                method: 'PUT',
+            const response = await fetch('/api/learnings', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ chapterIndex, uncomplete }),
+                body: JSON.stringify({ learningId: learning._id, chapterIndex, task: !isComplete ? 'setLearningProgress' : 'uncompleteProgress' }),
             });
 
             if (!response.ok) {
@@ -88,6 +101,8 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
             setError(error.message);
         } finally {
             setLoading(false);
+            onClose(); // Close the modal after updating progress
+            
         }
     };
 
@@ -253,12 +268,12 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                                 <div
                                     className="bg-blue-600 h-4 rounded-full transition-all duration-300"
                                     style={{
-                                        width: `${(learning.progress / learning.NoOfChapters) * 100}%`
+                                        width: `${(learning.completedChapters / learning.NoOfChapters) * 100}%`
                                     }}
                                 />
                             </div>
                             <p className="text-sm text-gray-400">
-                                {learning.progress} of {learning.NoOfChapters} chapters completed
+                                {learning.completedChapters} of {learning.NoOfChapters} chapters completed
                             </p>
                         </div>
 
@@ -266,7 +281,7 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                             <h4 className="text-blue-200 font-medium mb-2">Chapters</h4>
                             <div className="space-y-2">
                                 {learning.ChaptersName.map((chapter, index) => {
-                                    const isCompleted = learning.progress >= index + 1;
+                                    const isCompleted = learning.completedChapters >= index + 1;
                                     return (
                                         <div
                                             key={index}
@@ -279,7 +294,7 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                                                         disabled={loading}
                                                         className="px-3 py-1 rounded text-sm bg-green-600/50 text-green-200 hover:bg-green-700/50"
                                                     >
-                                                        ✓ Completed
+                                                        ✓ Mark Uncomplete
                                                     </button>
                                                 ) : (
                                                     <button

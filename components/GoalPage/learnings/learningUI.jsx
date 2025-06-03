@@ -35,26 +35,27 @@ const LearningUI = () => {
 
     const learningList = useMemo(() => (
         learningData.map((learning) => {
-            const completedChapters = learning.progress;
-            const progress = learning.progress / learning.NoOfChapters * 100 || 0;
+            const completedChapters = learning.completedChapters || 0;
+            const progress = Math.round((completedChapters / learning.NoOfChapters) * 100) || 0;
 
             return {
                 ...learning,
                 completedChapters,
                 progressPercent: progress,
-                stage: learning.status || (progress === 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started")
+                stage: learning.status || (progress === 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started"),
+                id: learning._id,
             };
         })
     ), [learningData]);
 
-    const handleUpdateProgress = async (learningId, chapterIndex) => {
+    const handleUpdateProgress = async (learning) => {
         try {
-            const response = await fetch(`/api/learnings/${learningId}/progress`, {
-                method: 'PUT',
+            const response = await fetch(`/api/learnings`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ chapterIndex }),
+                body: JSON.stringify({ learningId: learning._id, task: 'updateProgress' }),
             });
 
             if (!response.ok) throw new Error('Failed to update progress');
@@ -109,8 +110,8 @@ const LearningUI = () => {
                             <div className="flex justify-between items-start mb-3">
                                 <h3 className="text-xl font-semibold text-white">{learning.title}</h3>
                                 <span className={`px-2 py-1 rounded text-xs font-semibold ${learning.stage === 'Completed' ? 'bg-green-900/50 text-green-300' :
-                                        learning.stage === 'In Progress' ? 'bg-blue-900/50 text-blue-300' :
-                                            'bg-gray-900/50 text-gray-300'
+                                    learning.stage === 'In Progress' ? 'bg-blue-900/50 text-blue-300' :
+                                        'bg-gray-900/50 text-gray-300'
                                     }`}>
                                     {learning.stage}
                                 </span>
@@ -142,7 +143,7 @@ const LearningUI = () => {
 
                             <div className="flex gap-2 mt-4">
                                 <button
-                                    onClick={() => handleUpdateProgress(learning._id, learning.completedChapters)}
+                                    onClick={() => handleUpdateProgress(learning)}
                                     disabled={learning.stage === 'Completed'}
                                     className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 
                                              disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg 
@@ -165,7 +166,7 @@ const LearningUI = () => {
             {selectedLearning && (
                 <LearningDetailModal
                     learning={selectedLearning}
-                    onClose={() => setSelectedLearning(null)}                    onUpdate={(updatedLearning) => {
+                    onClose={() => setSelectedLearning(null)} onUpdate={(updatedLearning) => {
                         if (updatedLearning === null) {
                             // If learning was deleted, remove it from the list
                             setLearningData(prev =>

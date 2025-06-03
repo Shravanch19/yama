@@ -3,6 +3,19 @@ const { Schema, models, model } = mongoose;
 
 // Project Schema
 const projectSchema = new Schema({
+
+    // title
+    // description
+    // startDate
+    // deadline
+    // status
+    // progress
+    // modules [{name, status, progress, startDate, endDate, tasks [{title, description, status, priority, dueDate}]}]
+    // notes
+    // createdAt
+    // updatedAt
+
+
     title: {
         type: String,
         required: true,
@@ -27,10 +40,8 @@ const projectSchema = new Schema({
         default: 'Planning'
     },
     progress: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 100
+        type: [Number],
+        default: [0],
     },
     modules: [{
         name: {
@@ -69,27 +80,7 @@ const projectSchema = new Schema({
             dueDate: Date
         }]
     }],
-    team: [{
-        name: {
-            type: String,
-            required: true
-        },
-        role: String,
-        email: String
-    }],
-    tags: [{
-        type: String,
-        trim: true
-    }],
     notes: String,
-    attachments: [{
-        name: String,
-        url: String,
-        uploadDate: {
-            type: Date,
-            default: Date.now
-        }
-    }],
     createdAt: {
         type: Date,
         default: Date.now
@@ -102,20 +93,22 @@ const projectSchema = new Schema({
     timestamps: true // This will automatically handle createdAt and updatedAt
 });
 
-// Pre-save middleware to update progress based on modules
-projectSchema.pre('save', function(next) {
-    if (this.modules && this.modules.length > 0) {
-        const totalModules = this.modules.length;
-        const completedModules = this.modules.filter(m => m.status === 'Completed').length;
-        const inProgressModules = this.modules.filter(m => m.status === 'In Progress').length;
-        
-        this.progress = Math.round((completedModules + (inProgressModules * 0.5)) / totalModules * 100);
-    }
-    next();
-});
-
 // Learning Schema
 const learningSchema = new mongoose.Schema({
+
+    // title
+    // NoOfChapters
+    // ChaptersName
+    // progress
+    // currentChapterIndex
+    // completedChapters
+    // status
+
+    // notes
+    // createdAt
+    // updatedAt
+
+
     title: { type: String, required: true },
     NoOfChapters: { type: Number, required: true, min: 1 },
     ChaptersName: {
@@ -126,7 +119,31 @@ const learningSchema = new mongoose.Schema({
             message: 'ChaptersName cannot be empty',
         },
     },
-    progress: { type: Number, default: 0, min: 0, max: 100 },
+    progress: {
+        type: [Number],
+        required: true,
+        validate: {
+            validator: v => v.length > 0 && v.every(num => num >= 0),
+            message: 'Progress must be an array of non-negative numbers',
+        },
+        default: [0],
+        maxLength: {
+            validator: function (v) {
+                return v.length <= this.NoOfChapters;
+            },
+            message: 'Progress array cannot exceed the number of chapters',
+        },
+    },
+    currentChapterIndex: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+    completedChapters: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
     status: {
         type: String,
         enum: ['Not Started', 'In Progress', 'Completed'],

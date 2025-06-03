@@ -2,35 +2,39 @@
 import React, { useState } from "react";
 
 const Add_Learning = () => {
-    const [showForm, setShowForm] = useState(false); const [form, setForm] = useState({
+
+    const [showForm, setShowForm] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(""); 
+    const [form, setForm] = useState({
         title: "",
         NoOfChapters: 1,
         ChaptersName: [],
         status: "Not Started",
-        progress: 0,
         notes: "",
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-
+    
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm((prev) => ({
             ...prev,
             [name]: name === "NoOfChapters" ? parseInt(value) : value,
         }));
-    }; const handleExit = () => {
+    }; 
+    
+    const handleExit = () => {
         setShowForm(false);
         setForm({
             title: "",
             NoOfChapters: 1,
             ChaptersName: [],
             status: "Not Started",
-            progress: 0,
             notes: "",
         });
         setError("");
-    }; const validateForm = () => {
+    }; 
+
+    const validateForm = () => {
         if (form.NoOfChapters !== form.ChaptersName.length) {
             setError("Number of chapters must match the number of chapter names provided");
             return false;
@@ -61,7 +65,7 @@ const Add_Learning = () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, task: "addLearning" }),
             });
 
             if (!response.ok) {
