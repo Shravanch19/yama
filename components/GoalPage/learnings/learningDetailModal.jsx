@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 
 const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -16,30 +16,31 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
         completedChapters: learning.completedChapters,
         notes: learning.notes || "",
     });
-    
 
-    const handleChange = (e) => {
+    const handleChange = useCallback((e) => {
         const { name, value } = e.target;
-        setForm(prev => ({
+        setForm((prev) => ({
             ...prev,
-            [name]: name === "NoOfChapters" ? (parseInt(value) || 0) : value ,
+            [name]: name === "NoOfChapters" ? parseInt(value) || 0 : value,
         }));
-    };
+    }, []);
 
-    const handleChapterChange = (index, newValue) => {
-        const updatedChapters = [...form.ChaptersName];
-        updatedChapters[index] = newValue;
-        setForm(prev => ({
-            ...prev,
-            ChaptersName: updatedChapters
-        }));
-    };
+    const handleChapterChange = useCallback((index, newValue) => {
+        setForm((prev) => {
+            const updatedChapters = [...prev.ChaptersName];
+            updatedChapters[index] = newValue;
+            return {
+                ...prev,
+                ChaptersName: updatedChapters,
+            };
+        });
+    }, []);
 
     const handleAddChapter = () => {
-        setForm(prev => ({
+        setForm((prev) => ({
             ...prev,
             NoOfChapters: prev.NoOfChapters + 1,
-            ChaptersName: [...prev.ChaptersName, `Chapter ${prev.NoOfChapters + 1}`]
+            ChaptersName: [...prev.ChaptersName, `Chapter ${prev.NoOfChapters + 1}`],
         }));
     };
 
@@ -49,102 +50,100 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
         setError("");
 
         try {
-            if(form.status == 'Completed') {
-                form.completedChapters = form.NoOfChapters;
-                form.progress = Array(form.NoOfChapters).fill(1);
-                form.currentChapterIndex = form.NoOfChapters - 1;
+            const updatedForm = { ...form };
+
+            if (form.status === "Completed") {
+                updatedForm.completedChapters = form.NoOfChapters;
+                updatedForm.progress = Array(form.NoOfChapters).fill(1);
+                updatedForm.currentChapterIndex = form.NoOfChapters - 1;
             } else {
-                form.completedChapters = 0;
-                form.progress = Array(form.NoOfChapters).fill(0);
-                form.currentChapterIndex = 0;
+                updatedForm.completedChapters = 0;
+                updatedForm.progress = Array(form.NoOfChapters).fill(0);
+                updatedForm.currentChapterIndex = 0;
             }
-            const response = await fetch('/api/learnings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ...form, task: 'updateLearning', learningId: learning._id }),
+
+            const response = await fetch("/api/learnings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...updatedForm, task: "updateLearning", learningId: learning._id }),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to update learning');
-            }
+            if (!response.ok) throw new Error("Failed to update learning");
 
             const updatedLearning = await response.json();
             onUpdate(updatedLearning);
             setIsEditing(false);
-        } catch (error) {
-            setError(error.message);
+        } catch (err) {
+            console.error(err);
+            setError(err.message);
         } finally {
             setLoading(false);
+            onClose();
         }
     };
 
     const handleChapterProgress = async (chapterIndex, isComplete = false) => {
         setLoading(true);
+        setError("");
         try {
-            const response = await fetch('/api/learnings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ learningId: learning._id, chapterIndex, task: !isComplete ? 'setLearningProgress' : 'uncompleteProgress' }),
+            const response = await fetch("/api/learnings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    learningId: learning._id,
+                    chapterIndex,
+                    task: !isComplete ? "setLearningProgress" : "uncompleteProgress",
+                }),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to update progress');
-            }
+            if (!response.ok) throw new Error("Failed to update progress");
 
             const updatedLearning = await response.json();
             onUpdate(updatedLearning);
-        } catch (error) {
-            setError(error.message);
+        } catch (err) {
+            setError(err.message);
         } finally {
             setLoading(false);
-            onClose(); // Close the modal after updating progress
-            
+            onClose();
         }
     };
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this learning? This action cannot be undone.')) {
-            return;
-        }
-
+        if (!confirm("Are you sure you want to delete this learning?")) return;
         setLoading(true);
-        setError("");
-
         try {
-            const response = await fetch(`/api/learnings/${learning._id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+            const response = await fetch("/api/learnings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ learningId: learning._id, task: "deleteLearning" }),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to delete learning');
-            }
+            if (!response.ok) throw new Error("Failed to delete learning");
 
-            onUpdate(null); // Notify parent component about deletion
-            onClose(); // Close the modal
-        } catch (error) {
-            setError(error.message);
+            onUpdate(null);
+            onClose();
+        } catch (err) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-blue-600 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div className="bg-gray-800 p-6 rounded-xl shadow-2xl border border-blue-600 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-blue-300">
                         {isEditing ? "Edit Learning" : "Learning Details"}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="text-blue-200 hover:text-blue-400"
+                        className="text-blue-200 hover:text-blue-400 transition"
+                        aria-label="Close"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -193,7 +192,7 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                             <button
                                 type="button"
                                 onClick={handleAddChapter}
-                                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
                             >
                                 Add Chapter
                             </button>
@@ -251,12 +250,16 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                     <div className="space-y-6">
                         <div>
                             <h3 className="text-xl font-semibold text-white mb-2">{learning.title}</h3>
-                            <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded text-sm ${
-                                    learning.status === 'Completed' ? 'bg-green-900/50 text-green-300' :
-                                    learning.status === 'In Progress' ? 'bg-blue-900/50 text-blue-300' :
-                                    'bg-gray-900/50 text-gray-300'
-                                }`}>
+                            <div>
+                                <span
+                                    className={`px-2 py-1 rounded text-sm ${
+                                        learning.status === "Completed"
+                                            ? "bg-green-900/50 text-green-300"
+                                            : learning.status === "In Progress"
+                                            ? "bg-blue-900/50 text-blue-300"
+                                            : "bg-gray-900/50 text-gray-300"
+                                    }`}
+                                >
                                     {learning.status}
                                 </span>
                             </div>
@@ -268,7 +271,7 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                                 <div
                                     className="bg-blue-600 h-4 rounded-full transition-all duration-300"
                                     style={{
-                                        width: `${(learning.completedChapters / learning.NoOfChapters) * 100}%`
+                                        width: `${(learning.completedChapters / learning.NoOfChapters) * 100}%`,
                                     }}
                                 />
                             </div>
@@ -287,12 +290,13 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                                             key={index}
                                             className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                                         >
-                                            <span className="text-white">{chapter}</span>                                            <div className="flex gap-2">
+                                            <span className="text-white">{chapter}</span>
+                                            <div className="flex gap-2">
                                                 {isCompleted ? (
                                                     <button
                                                         onClick={() => handleChapterProgress(index, true)}
                                                         disabled={loading}
-                                                        className="px-3 py-1 rounded text-sm bg-green-600/50 text-green-200 hover:bg-green-700/50"
+                                                        className="px-3 py-1 rounded text-sm bg-green-600/50 text-green-200 hover:bg-green-700/50 transition"
                                                     >
                                                         ✓ Mark Uncomplete
                                                     </button>
@@ -300,7 +304,7 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                                                     <button
                                                         onClick={() => handleChapterProgress(index)}
                                                         disabled={loading}
-                                                        className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700 text-white"
+                                                        className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-700 text-white transition"
                                                     >
                                                         Mark Complete
                                                     </button>
@@ -328,10 +332,10 @@ const LearningDetailModal = ({ learning, onClose, onUpdate }) => {
                         <div className="flex justify-end gap-2 mt-6">
                             <button
                                 onClick={handleDelete}
-                                className="px-4 py-2 rounded bg-red-600/50 text-red-200 hover:bg-red-600/70 disabled:opacity-50"
+                                className="px-4 py-2 rounded bg-red-600/50 text-red-200 hover:bg-red-600/70 disabled:opacity-50 transition"
                                 disabled={loading}
                             >
-                                {loading ? 'Deleting...' : 'Delete Learning'}
+                                {loading ? "Deleting..." : "Delete Learning"}
                             </button>
                             <button
                                 onClick={() => setIsEditing(true)}

@@ -93,57 +93,32 @@ const projectSchema = new Schema({
     timestamps: true // This will automatically handle createdAt and updatedAt
 });
 
-// Learning Schema
-const learningSchema = new mongoose.Schema({
-
-    // title
-    // NoOfChapters
-    // ChaptersName
-    // progress
-    // currentChapterIndex
-    // completedChapters
-    // status
-
-    // notes
-    // createdAt
-    // updatedAt
-
-
+const learningSchema = new Schema({
     title: { type: String, required: true },
     NoOfChapters: { type: Number, required: true, min: 1 },
     ChaptersName: {
         type: [String],
         required: true,
         validate: {
-            validator: v => v.length > 0,
-            message: 'ChaptersName cannot be empty',
+            validator: function (v) {
+                return v.length === this.NoOfChapters;
+            },
+            message: 'ChaptersName length must match NoOfChapters',
         },
     },
     progress: {
         type: [Number],
         required: true,
         validate: {
-            validator: v => v.length > 0 && v.every(num => num >= 0),
-            message: 'Progress must be an array of non-negative numbers',
-        },
-        default: [0],
-        maxLength: {
             validator: function (v) {
-                return v.length <= this.NoOfChapters;
+                return v.length === this.NoOfChapters && v.every(num => num >= 0);
             },
-            message: 'Progress array cannot exceed the number of chapters',
+            message: 'Progress must be a non-negative array matching NoOfChapters length',
         },
+        default: [],
     },
-    currentChapterIndex: {
-        type: Number,
-        default: 0,
-        min: 0,
-    },
-    completedChapters: {
-        type: Number,
-        default: 0,
-        min: 0,
-    },
+    currentChapterIndex: { type: Number, default: 0, min: 0 },
+    completedChapters: { type: Number, default: 0, min: 0 },
     status: {
         type: String,
         enum: ['Not Started', 'In Progress', 'Completed'],
@@ -154,9 +129,11 @@ const learningSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
+learningSchema.pre('save', function (next) {
+    this.updatedAt = Date.now();
+    next();
+});
 
-
-// Create models
 const Project = models.Project || model('Project', projectSchema);
 const Learning = models.Learning || model('Learning', learningSchema);
 

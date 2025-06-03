@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useMemo, use } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import Add_Learning from "./learningModal";
 import LearningDetailModal from "./learningDetailModal";
 
@@ -59,13 +60,12 @@ const LearningUI = () => {
             });
 
             if (!response.ok) throw new Error('Failed to update progress');
-            await fetchLearnings(); // Refresh the data
+            await fetchLearnings();
         } catch (error) {
             console.error('Error updating progress:', error);
             setError('Failed to update progress. Please try again.');
         }
     };
-
 
     return (
         <section className="bg-gray-800 rounded-2xl p-6 shadow-xl border border-blue-600">
@@ -78,7 +78,7 @@ const LearningUI = () => {
                         </p>
                     )}
                 </div>
-                <Add_Learning />
+                <Add_Learning onLearningAdded={fetchLearnings} />
             </div>
 
             {loading ? (
@@ -108,7 +108,9 @@ const LearningUI = () => {
                             className="bg-gray-700 p-5 rounded-xl border border-gray-600 hover:border-blue-500 transition-all duration-200"
                         >
                             <div className="flex justify-between items-start mb-3">
-                                <h3 className="text-xl font-semibold text-white">{learning.title}</h3>
+                                <h3 className="text-xl font-semibold text-white line-clamp-2 break-words">
+                                    {learning.title}
+                                </h3>
                                 <span className={`px-2 py-1 rounded text-xs font-semibold ${learning.stage === 'Completed' ? 'bg-green-900/50 text-green-300' :
                                     learning.stage === 'In Progress' ? 'bg-blue-900/50 text-blue-300' :
                                         'bg-gray-900/50 text-gray-300'
@@ -135,7 +137,7 @@ const LearningUI = () => {
                                     {learning.completedChapters} of {learning.NoOfChapters} chapters completed
                                 </p>
                                 {learning.notes && (
-                                    <p className="text-sm text-gray-400 italic">
+                                    <p className="text-sm text-gray-400 italic line-clamp-3">
                                         "{learning.notes}"
                                     </p>
                                 )}
@@ -166,14 +168,13 @@ const LearningUI = () => {
             {selectedLearning && (
                 <LearningDetailModal
                     learning={selectedLearning}
-                    onClose={() => setSelectedLearning(null)} onUpdate={(updatedLearning) => {
+                    onClose={() => setSelectedLearning(null)}
+                    onUpdate={(updatedLearning) => {
                         if (updatedLearning === null) {
-                            // If learning was deleted, remove it from the list
                             setLearningData(prev =>
                                 prev.filter(l => l._id !== selectedLearning._id)
                             );
                         } else {
-                            // If learning was updated, update it in the list
                             setLearningData(prev =>
                                 prev.map(l => l._id === updatedLearning._id ? updatedLearning : l)
                             );
@@ -182,7 +183,7 @@ const LearningUI = () => {
                 />
             )}
         </section>
-    )
-}
+    );
+};
 
-export default LearningUI
+export default LearningUI;

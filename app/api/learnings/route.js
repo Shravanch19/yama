@@ -1,47 +1,118 @@
 import { NextResponse } from 'next/server';
 import { Learning } from '@/models/data';
-import connectDB from "@/config/db";
-import next from 'next';
+import connectDB from '@/config/db';
+
+const getLearningById = async (id) => {
+    const learning = await Learning.findById(id);
+    if (!learning) throw new Error('Learning not found');
+    return learning;
+};
+
+const taskHandlers = {
+    async addLearning(data) {
+        const { title, NoOfChapters, ChaptersName, status, notes } = data;
+        const progress = Array(NoOfChapters).fill(0);
+        const newLearning = new Learning({
+            title,
+            NoOfChapters,
+            ChaptersName,
+            progress,
+            status: status || 'Not Started',
+            notes: notes || '',
+        });
+        await newLearning.save();
+        return NextResponse.json(newLearning, { status: 201 });
+    },
+
+    async updateLearning(data) {
+        const { learningId, ...updateFields } = data;
+        if (!learningId) {
+            return NextResponse.json({ error: 'Learning ID is required' }, { status: 400 });
+        }
+        const updated = await Learning.findByIdAndUpdate(
+            learningId,
+            { ...updateFields, updatedAt: new Date() },
+            { new: true }
+        );
+        if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json(updated);
+    },
+
+    async deleteLearning(data) {
+        const { learningId } = data;
+        if (!learningId) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+        const deleted = await Learning.findByIdAndDelete(learningId);
+        if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return NextResponse.json({ message: 'Deleted successfully' });
+    },
+
+    async updateProgress(data) {
+        const { learningId } = data;
+        const learning = await getLearningById(learningId);
+        if (learning.progress[learning.currentChapterIndex] !== 1) {
+            learning.progress[learning.currentChapterIndex] = 1;
+            learning.completedChapters += 1;
+        }
+
+        if (learning.completedChapters >= learning.NoOfChapters) {
+            learning.status = 'Completed';
+            learning.currentChapterIndex = learning.NoOfChapters;
+        } else {
+            if (learning.status === 'Not Started') {
+                learning.status = 'In Progress';
+            }
+            learning.currentChapterIndex = learning.progress.findIndex((val) => val === 0);
+        }
+        learning.status =
+            learning.completedChapters === learning.NoOfChapters
+                ? 'Completed'
+                : 'In Progress';
+        await learning.save();
+        return NextResponse.json(learning);
+    },
+
+    async uncompleteProgress(data) {
+        const { learningId, chapterIndex } = data;
+        const learning = await getLearningById(learningId);
+        learning.progress[chapterIndex] = 0;
+        learning.completedChapters -= 1;
+        learning.currentChapterIndex = learning.progress.findIndex(ch => ch === 0);
+        learning.status = learning.completedChapters === 0 ? 'Not Started' : 'In Progress';
+        await learning.save();
+        return NextResponse.json(learning);
+    },
+
+    async setLearningProgress(data) {
+        const { learningId, chapterIndex } = data;
+        const learning = await getLearningById(learningId);
+        if (learning.progress[chapterIndex] === 0) learning.completedChapters += 1;
+        learning.progress[chapterIndex] = 1;
+        if (!(learning.completedChapters >= learning.NoOfChapters)) {
+            learning.currentChapterIndex = learning.progress.findIndex(ch => ch === 0);
+        }
+        learning.status =
+            learning.completedChapters === learning.NoOfChapters
+                ? 'Completed'
+                : 'In Progress';
+        await learning.save();
+        return NextResponse.json(learning);
+    },
+};
 
 export async function GET(request) {
     try {
         await connectDB();
-
-
-        // Get the URL instance from the request
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-
         if (id) {
-            // If ID is provided, fetch specific learning
             const learning = await Learning.findById(id);
-
-            if (!learning) {
-                return NextResponse.json(
-                    { message: 'Learning not found' },
-                    { status: 404 }
-                );
-            }
-
+            if (!learning) return NextResponse.json({ message: 'Not found' }, { status: 404 });
             return NextResponse.json(learning);
         }
-
-        // If no ID, fetch all learnings with sorting
-        const learnings = await Learning
-            .find({})
-            .sort({ createdAt: -1 });
-
-        if (!learnings || learnings.length === 0) {
-            return NextResponse.json([], { status: 200 }); // Return empty array instead of 404
-        }
-
+        const learnings = await Learning.find({}).sort({ createdAt: -1 }).lean();
         return NextResponse.json(learnings);
     } catch (error) {
-        console.error('Error fetching learnings:', error);
-        return NextResponse.json(
-            { message: 'Error fetching learnings', error: error.message },
-            { status: 500 }
-        );
+        return NextResponse.json({ message: error.message }, { status: 500 });
     }
 }
 
@@ -50,193 +121,12 @@ export async function POST(request) {
         await connectDB();
         const data = await request.json();
         const { task } = data;
-
-        if (!task) {
-            console.error('Task is required but not provided:', data);
-            return NextResponse.json({
-                error: 'Task is required'
-            }, { status: 400 });
-        }
-        else if (task == 'addLearning') {
-            console.log('Task is addLearning, proceeding with creation');
-
-            const { title, NoOfChapters, ChaptersName, status, notes } = data;
-
-            // create a array named progress of length NoOfChapters with all values as 0
-            const progress = Array(NoOfChapters).fill(0);
-
-            const newLearning = new Learning({
-                title,
-                NoOfChapters,
-                ChaptersName,
-                progress: progress,
-                currentChapterIndex: 0,
-                completedChapters: 0,
-                status: status || 'Not Started',
-                notes: notes || '',
-            });
-            await newLearning.save();
-            console.log('New learning created:');
-            return NextResponse.json(newLearning, { status: 201 });
-        }
-        else if(task == 'updateLearning') {
-            console.log('Task is updateLearning, proceeding with update');
-            const { learningId, title, NoOfChapters, ChaptersName, progress, currentChapterIndex, completedChapters, status, notes } = data;
-
-            if (!learningId) {
-                return NextResponse.json({ error: 'Learning ID is required for update' }, { status: 400 });
-            }
-
-            const updatedLearning = await Learning.findByIdAndUpdate(
-                learningId,
-                {
-                    title,
-                    NoOfChapters,
-                    ChaptersName,
-                    progress,
-                    currentChapterIndex,
-                    completedChapters,
-                    status: status || 'Not Started',
-                    notes: notes || '',
-                    updatedAt: new Date()
-                },
-                { new: true }
-            );
-
-            if (!updatedLearning) {
-                return NextResponse.json({ error: 'Learning not found' }, { status: 404 });
-            }
-
-            console.log('Learning updated:', updatedLearning);
-            return NextResponse.json(updatedLearning, { status: 200 });
-        }
-        else if(task == 'deleteLearning') {
-            console.log('Task is deleteLearning, proceeding with deletion');
-            const { learningId } = data;
-
-            if (!learningId) {
-                return NextResponse.json({ error: 'Learning ID is required for deletion' }, { status: 400 });
-            }
-
-            const deletedLearning = await Learning.findByIdAndDelete(learningId);
-
-            if (!deletedLearning) {
-                return NextResponse.json({ error: 'Learning not found' }, { status: 404 });
-            }
-
-            console.log('Learning deleted:', deletedLearning);
-            return NextResponse.json({ message: 'Learning deleted successfully' }, { status: 200 });
-        }
-        else if (task == 'updateProgress') {
-            console.log('Task is updateProgress, proceeding with progress update');
-            const { learningId } = data;
-
-            if (!learningId) {
-                return NextResponse.json({ error: 'Learning ID is required for progress update' }, { status: 400 });
-            }
-
-            const learning = await Learning.findById(learningId);
-            if (!learning) {
-                return NextResponse.json({ error: 'Learning not found' }, { status: 404 });
-            }
-
-            let progress = learning.progress;
-            let chaptersLength = learning.NoOfChapters;
-            let currentChapterIndex = learning.currentChapterIndex;
-            let completedChapters = learning.completedChapters;
-
-            progress[currentChapterIndex] = 1;
-            currentChapterIndex += 1;
-            completedChapters += 1;
-
-            if(learning.status === 'Not Started') {
-                learning.status = 'In Progress';
-            }
-
-            if(completedChapters === chaptersLength) {
-                learning.status = 'Completed';
-            }
-
-            learning.progress = progress;
-            learning.currentChapterIndex = currentChapterIndex;
-            learning.completedChapters = completedChapters;
-            learning.updatedAt = new Date();
-
-            await learning.save();
-
-            console.log('Learning progress updated:', learning);
-            return NextResponse.json(learning, { status: 200 });
-        } 
-        else if (task == 'uncompleteProgress') {
-            console.log('Task is uncompleteProgress, proceeding with uncomplete');
-            const { learningId, chapterIndex } = data;
-
-            if (!learningId) {
-                return NextResponse.json({ error: 'Learning ID is required for uncomplete' }, { status: 400 });
-            }
-
-            const learning = await Learning.findById(learningId);
-            if (!learning) {
-                return NextResponse.json({ error: 'Learning not found' }, { status: 404 });
-            }
-
-            let progress = learning.progress;
-            let currentChapterIndex = learning.currentChapterIndex;
-            let completedChapters = learning.completedChapters;
-
-            progress[chapterIndex] = 0;
-            completedChapters -= 1;
-            currentChapterIndex = progress.findIndex((chapter) => chapter === 0);
-
-            if(completedChapters === 0) {
-                learning.status = 'Not Started';
-            } else {
-                learning.status = 'In Progress';
-            }
-
-            learning.progress = progress;
-            learning.currentChapterIndex = currentChapterIndex;
-            learning.completedChapters = completedChapters;
-
-            await learning.save();
-
-            console.log('Learning progress uncompleted:', learning);
-            return NextResponse.json(learning, { status: 200 });
-        }
-        else if (task == 'setLearningProgress') {
-            console.log('Task is setLearningProgress, proceeding with setting progress');
-            const { learningId, chapterIndex } = data;
-
-            if (!learningId) {
-                return NextResponse.json({ error: 'Learning ID is required for setting progress' }, { status: 400 });
-            }
-
-            const learning = await Learning.findById(learningId);
-            if (!learning) {
-                return NextResponse.json({ error: 'Learning not found' }, { status: 404 });
-            }
-
-            learning.progress[chapterIndex] = 1; // Set the specified chapter as completed
-            learning.completedChapters += 1; // Increment completed chapters count
-            if (learning.status === 'Not Started') {
-                learning.status = 'In Progress'; // Change status if it was not started
-            } else if (learning.completedChapters === learning.NoOfChapters) {
-                learning.status = 'Completed'; // Change status to completed if all chapters are done
-            }
-            learning.currentChapterIndex = learning.progress.findIndex((chapter) => chapter === 0);
-            learning.updatedAt = new Date(); // Update the timestamp
-
-            await learning.save();
-
-            console.log('Learning progress set:', learning);
-            return NextResponse.json(learning, { status: 200 });
-
-        } else {
-            console.error('Unknown task:', task);
+        if (!taskHandlers[task]) {
             return NextResponse.json({ error: 'Unknown task' }, { status: 400 });
         }
+        return await taskHandlers[task](data);
     } catch (error) {
-        console.error('Error creating learning:', error);
-        return NextResponse.json({ error: 'Failed to create learning' }, { status: 500 });
+        console.error('Error in learning route:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

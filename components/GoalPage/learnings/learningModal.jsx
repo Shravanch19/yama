@@ -1,38 +1,39 @@
 "use client";
 import React, { useState } from "react";
 
-const Add_Learning = () => {
-
+const Add_Learning = ({ onLearningAdded }) => {
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(""); 
+    const [error, setError] = useState("");
     const [form, setForm] = useState({
         title: "",
         NoOfChapters: 1,
         ChaptersName: [],
+        ChaptersNameText: "",
         status: "Not Started",
         notes: "",
     });
-    
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setForm((prev) => ({
             ...prev,
             [name]: name === "NoOfChapters" ? parseInt(value) : value,
         }));
-    }; 
-    
+    };
+
     const handleExit = () => {
         setShowForm(false);
         setForm({
             title: "",
             NoOfChapters: 1,
             ChaptersName: [],
+            ChaptersNameText: "",
             status: "Not Started",
             notes: "",
         });
         setError("");
-    }; 
+    };
 
     const validateForm = () => {
         if (form.NoOfChapters !== form.ChaptersName.length) {
@@ -54,17 +55,13 @@ const Add_Learning = () => {
         e.preventDefault();
         setError("");
 
-        if (!validateForm()) {
-            return;
-        }
+        if (!validateForm()) return;
 
         setLoading(true);
         try {
             const response = await fetch("/api/learnings", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...form, task: "addLearning" }),
             });
 
@@ -72,8 +69,9 @@ const Add_Learning = () => {
                 const data = await response.json();
                 throw new Error(data.message || "Failed to add learning");
             }
-            alert("Learning added successfully!");
 
+            alert("Learning added successfully!");
+            onLearningAdded?.();
             handleExit();
         } catch (error) {
             console.error("Error adding learning:", error);
@@ -92,7 +90,7 @@ const Add_Learning = () => {
                 Add Learning
             </button>
             {showForm && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
                     <form
                         onSubmit={handleSubmit}
                         className="bg-gray-800 p-6 rounded-lg shadow-lg border border-blue-600 w-full max-w-md"
@@ -101,8 +99,8 @@ const Add_Learning = () => {
                             <h2 className="text-2xl font-bold text-blue-300 mb-4">Add Learning</h2>
                             <button
                                 type="button"
-                                className=" text-blue-200 hover:text-blue-400"
-                                onClick={() => handleExit()}
+                                className="text-blue-200 hover:text-blue-400"
+                                onClick={handleExit}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -121,9 +119,7 @@ const Add_Learning = () => {
                             </button>
                         </div>
                         <div className="mb-4">
-                            <label className="block text-blue-200 mb-2" htmlFor="title">
-                                Learning Title
-                            </label>
+                            <label className="block text-blue-200 mb-2">Learning Title</label>
                             <input
                                 type="text"
                                 name="title"
@@ -132,27 +128,12 @@ const Add_Learning = () => {
                                 className="w-full p-2 rounded bg-gray-700 text-blue-100"
                                 required
                             />
-                        </div>                        <div className="mb-4">
-                            <label className="block text-blue-200 mb-2" htmlFor="NoOfChapters">
-                                Number of Chapters
-                            </label>
-                            <input
-                                type="number"
-                                name="NoOfChapters"
-                                value={form.NoOfChapters}
-                                onChange={handleChange}
-                                min="1"
-                                className="w-full p-2 rounded bg-gray-700 text-blue-100"
-                                required
-                            />
                         </div>
                         <div className="mb-4">
-                            <label className="block text-blue-200 mb-2" htmlFor="ChaptersName">
-                                Chapters Name (comma separated)
-                            </label>
+                            <label className="block text-blue-200 mb-2">Chapters Name (comma or newline separated)</label>
                             <textarea
-                                name="ChaptersName"
-                                placeholder="e.g., Introduction to Topic, Basic Concepts, Advanced Applications..."
+                                name="ChaptersNameText"
+                                placeholder="e.g., Intro, Basics, Advanced..."
                                 value={form.ChaptersNameText}
                                 onChange={(e) => {
                                     const text = e.target.value;
@@ -164,22 +145,18 @@ const Add_Learning = () => {
                                         ...prev,
                                         ChaptersNameText: text,
                                         ChaptersName: chapters,
-                                        NoOfChapters: chapters.length || 1
+                                        NoOfChapters: chapters.length || 1,
                                     }));
                                 }}
                                 className="w-full p-2 rounded bg-gray-700 text-blue-100 min-h-[100px]"
                                 required
-                            />                           <p className="text-sm text-blue-300 mt-1">
+                            />
+                            <p className="text-sm text-blue-300 mt-1">
                                 {form.ChaptersName.length} {form.ChaptersName.length === 1 ? 'chapter' : 'chapters'} added
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                Enter each chapter on a new line or separate with commas
                             </p>
                         </div>
                         <div className="mb-4">
-                            <label className="block text-blue-200 mb-2" htmlFor="status">
-                                Status
-                            </label>
+                            <label className="block text-blue-200 mb-2">Status</label>
                             <select
                                 name="status"
                                 value={form.status}
@@ -193,14 +170,12 @@ const Add_Learning = () => {
                             </select>
                         </div>
                         <div className="mb-4">
-                            <label className="block text-blue-200 mb-2" htmlFor="notes">
-                                Notes (optional)
-                            </label>
+                            <label className="block text-blue-200 mb-2">Notes (optional)</label>
                             <textarea
                                 name="notes"
                                 value={form.notes}
                                 onChange={handleChange}
-                                placeholder="Any additional notes about your learning goals..."
+                                placeholder="Any additional notes..."
                                 className="w-full p-2 rounded bg-gray-700 text-blue-100 min-h-[80px]"
                             />
                         </div>
@@ -208,7 +183,8 @@ const Add_Learning = () => {
                             <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-200">
                                 {error}
                             </div>
-                        )}                        <button
+                        )}
+                        <button
                             type="submit"
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow w-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={loading}
