@@ -1,8 +1,8 @@
 import React from 'react';
 
-const CircularProgress = ({ name, progress }) => {
+const CircularProgress = ({ name, progress, sz = 150 }) => {
 
-  let size = 150;
+  let size = sz;
   let strokeWidth = 6;
   let primaryColor = "#2563EB";
   let trackColor = "#E0F2FE";

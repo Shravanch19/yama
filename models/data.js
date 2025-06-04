@@ -54,10 +54,8 @@ const projectSchema = new Schema({
             default: 'Not Started'
         },
         progress: {
-            type: Number,
-            default: 0,
-            min: 0,
-            max: 100
+            type: [Number],
+            default: [0],
         },
         startDate: Date,
         endDate: Date,
