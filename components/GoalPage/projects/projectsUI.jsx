@@ -17,8 +17,52 @@ const priorityColors = {
   'High': 'bg-red-100 text-red-800'
 };
 
-const ProjectCard = ({ project }) => {
+const ProgressUpdateModal = ({ isOpen, onClose, currentProgress, onUpdate }) => {
+  const [progress, setProgress] = useState(currentProgress);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div className="bg-gray-800 rounded-lg shadow-lg border border-purple-600 p-6 w-full max-w-md">
+        <h3 className="text-xl font-bold text-purple-300 mb-4">Update Progress</h3>
+        <div className="mb-4">
+          <label className="block text-purple-200 mb-2">Progress (%)</label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={progress}
+            onChange={(e) => setProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+            className="w-full p-2 rounded bg-gray-700 text-purple-100"
+          />
+        </div>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-purple-300 hover:text-purple-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              onUpdate(progress);
+              onClose();
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded"
+          >
+            Update
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProjectCard = ({ project, onEdit, onDelete, onProgressUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const currentModule = project.modules?.find(m => m.status === 'In Progress') || project.modules?.[0];
   
   const calculateDaysRemaining = (deadline) => {
@@ -82,7 +126,7 @@ const ProjectCard = ({ project }) => {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
@@ -90,9 +134,22 @@ const ProjectCard = ({ project }) => {
             {isExpanded ? 'Show Less' : 'Show More'}
           </button>
           <button
+            onClick={() => setShowProgressModal(true)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+          >
+            Update Progress
+          </button>
+          <button
+            onClick={() => onEdit(project)}
             className="flex-1 border border-purple-500 text-purple-500 hover:bg-purple-500/10 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
           >
             Edit Project
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex-1 border border-red-500 text-red-500 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+          >
+            Delete Project
           </button>
         </div>
 
@@ -139,6 +196,39 @@ const ProjectCard = ({ project }) => {
           </div>
         )}
       </div>
+
+      <ProgressUpdateModal
+        isOpen={showProgressModal}
+        onClose={() => setShowProgressModal(false)}
+        currentProgress={project.progress || 0}
+        onUpdate={(progress) => onProgressUpdate(project._id, progress)}
+      />
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-gray-800 rounded-lg shadow-lg border border-red-600 p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold text-red-400 mb-4">Delete Project</h3>
+            <p className="text-gray-300 mb-6">Are you sure you want to delete "{project.title}"? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-300 hover:text-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(project._id);
+                  setShowDeleteConfirm(false);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -147,6 +237,83 @@ const ProjectsUI = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const handleEditProject = (project) => {
+    setEditingProject(project);
+    setShowModal(true);
+  };
+
+  const onProjectSaved = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/projects');
+      const data = await response.json();
+      setProjects(Array.isArray(data) ? data : []);
+      setError(null);
+      setEditingProject(null);
+      setShowModal(false);
+    } catch (err) {
+      console.error('Error refreshing projects:', err);
+      setError('Failed to refresh projects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId) => {
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          task: 'deleteProject',
+          projectId
+        }),
+      });
+
+      if (response.ok) {
+        setProjects(projects.filter(p => p._id !== projectId));
+      } else {
+        const data = await response.json();
+        setError(data.message || 'Failed to delete project');
+      }
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      setError('Failed to delete project');
+    }
+  };
+
+  const handleProgressUpdate = async (projectId, progress) => {
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          task: 'updateProgress',
+          projectId,
+          progress
+        }),
+      });
+
+      if (response.ok) {
+        setProjects(projects.map(p => 
+          p._id === projectId ? { ...p, progress } : p
+        ));
+      } else {
+        const data = await response.json();
+        setError(data.message || 'Failed to update progress');
+      }
+    } catch (err) {
+      console.error('Error updating progress:', err);
+      setError('Failed to update progress');
+    }
+  };
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -172,7 +339,12 @@ const ProjectsUI = () => {
     <section className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-purple-300">Projects</h2>
-        <Add_Project />
+        <Add_Project 
+          isOpen={showModal}
+          setIsOpen={setShowModal}
+          existingProject={editingProject}
+          onSave={onProjectSaved}
+        />
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -190,7 +362,13 @@ const ProjectsUI = () => {
           </div>
         ) : (
           projects.map((project) => (
-            <ProjectCard key={project._id} project={project} />
+            <ProjectCard 
+              key={project._id} 
+              project={project} 
+              onEdit={handleEditProject}
+              onDelete={handleDeleteProject}
+              onProgressUpdate={handleProgressUpdate}
+            />
           ))
         )}
       </div>

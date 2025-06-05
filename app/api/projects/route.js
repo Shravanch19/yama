@@ -50,39 +50,102 @@ export async function POST(request) {
         const { task } = data;
 
         if (!task) {
-            console.error('Task is required but not provided:', data);
             return NextResponse.json({
-                error: 'Task is required'
+                error: 'Task type is required'
             }, { status: 400 });
         }
 
         if (task === 'addProject') {
-            console.log('Task is addProject, proceeding with creation');
+            const { 
+                title, 
+                description, 
+                startDate, 
+                deadline, 
+                status, 
+                modules, 
+                notes, 
+                priority 
+            } = data;
 
-            const { title, description, startDate, deadline, status, modules, notes } = data;
+            // Validate required fields
+            if (!title || !startDate || !deadline) {
+                return NextResponse.json({
+                    error: 'Title, start date, and deadline are required'
+                }, { status: 400 });
+            }
+
+            // Validate and process modules if provided
+            const processedModules = modules?.map(module => ({
+                name: module.name,
+                startDate: module.startDate,
+                endDate: module.endDate,
+                status: module.status || 'Not Started',
+                progress: module.progress || 0,
+                tasks: module.tasks?.map(task => ({
+                    title: task.title,
+                    description: task.description || '',
+                    status: task.status || 'Pending',
+                    priority: task.priority || 'Medium',
+                    dueDate: task.dueDate
+                })) || []
+            })) || [];
 
             const newProject = new Project({
                 title,
-                description,
+                description: description || '',
                 startDate,
                 deadline,
                 status: status || 'Planning',
-                modules: modules || [],
-                progress: [0], // Initial progress
+                priority: priority || 'Medium',
+                modules: processedModules,
+                progress: 0,
                 notes: notes || '',
             });
+
             await newProject.save();
-            console.log('New project created');
             return NextResponse.json(newProject, { status: 201 });
         }
 
         if (task === 'updateProject') {
-            console.log('Task is updateProject, proceeding with update');
-            const { projectId, title, description, startDate, deadline, status, modules, progress, notes } = data;
+            const { 
+                projectId, 
+                title, 
+                description, 
+                startDate, 
+                deadline, 
+                status, 
+                modules, 
+                progress, 
+                notes,
+                priority 
+            } = data;
 
             if (!projectId) {
-                return NextResponse.json({ error: 'Project ID is required for update' }, { status: 400 });
+                return NextResponse.json({ 
+                    error: 'Project ID is required for update' 
+                }, { status: 400 });
             }
+
+            // Process and validate modules
+            const processedModules = modules?.map(module => ({
+                name: module.name,
+                startDate: module.startDate,
+                endDate: module.endDate,
+                status: module.status || 'Not Started',
+                progress: module.progress || 0,
+                tasks: module.tasks?.map(task => ({
+                    title: task.title,
+                    description: task.description || '',
+                    status: task.status || 'Pending',
+                    priority: task.priority || 'Medium',
+                    dueDate: task.dueDate
+                })) || []
+            }));
+
+            // Calculate overall project progress based on module progress
+            const calculatedProgress = modules?.length 
+                ? modules.reduce((acc, module) => acc + (module.progress || 0), 0) / modules.length
+                : progress || 0;
 
             const updatedProject = await Project.findByIdAndUpdate(
                 projectId,
@@ -92,48 +155,83 @@ export async function POST(request) {
                     startDate,
                     deadline,
                     status,
-                    modules,
-                    progress,
+                    priority,
+                    modules: processedModules,
+                    progress: calculatedProgress,
                     notes,
                 },
                 { new: true }
             );
 
             if (!updatedProject) {
-                return NextResponse.json(
-                    { message: 'Project not found' },
-                    { status: 404 }
-                );
+                return NextResponse.json({ 
+                    error: 'Project not found' 
+                }, { status: 404 });
             }
 
             return NextResponse.json(updatedProject);
         }
 
         if (task === 'deleteProject') {
-            console.log('Task is deleteProject, proceeding with deletion');
             const { projectId } = data;
 
             if (!projectId) {
-                return NextResponse.json({ error: 'Project ID is required for deletion' }, { status: 400 });
+                return NextResponse.json({ 
+                    error: 'Project ID is required for deletion' 
+                }, { status: 400 });
             }
 
             const deletedProject = await Project.findByIdAndDelete(projectId);
 
             if (!deletedProject) {
-                return NextResponse.json(
-                    { message: 'Project not found' },
-                    { status: 404 }
-                );
+                return NextResponse.json({ 
+                    error: 'Project not found' 
+                }, { status: 404 });
             }
 
-            return NextResponse.json({ message: 'Project deleted successfully' });
+            return NextResponse.json({ 
+                message: 'Project deleted successfully' 
+            });
         }
 
-        return NextResponse.json({ error: 'Invalid task' }, { status: 400 });
+        if (task === 'updateProgress') {
+            const { projectId, progress } = data;
+
+            if (!projectId) {
+                return NextResponse.json({ 
+                    error: 'Project ID is required for progress update' 
+                }, { status: 400 });
+            }
+
+            if (typeof progress !== 'number' || progress < 0 || progress > 100) {
+                return NextResponse.json({ 
+                    error: 'Progress must be a number between 0 and 100' 
+                }, { status: 400 });
+            }
+
+            const updatedProject = await Project.findByIdAndUpdate(
+                projectId,
+                { progress },
+                { new: true }
+            );
+
+            if (!updatedProject) {
+                return NextResponse.json({ 
+                    error: 'Project not found' 
+                }, { status: 404 });
+            }
+
+            return NextResponse.json(updatedProject);
+        }
+
+        return NextResponse.json({ 
+            error: 'Invalid task type' 
+        }, { status: 400 });
+
     } catch (error) {
-        console.error('Error processing project operation:', error);
+        console.error('Error processing project:', error);
         return NextResponse.json(
-            { message: 'Error processing project operation', error: error.message },
+            { message: 'Error processing project', error: error.message },
             { status: 500 }
         );
     }
