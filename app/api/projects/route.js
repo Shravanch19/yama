@@ -88,9 +88,13 @@ export async function POST(request) {
                     priority: task.priority || 'Medium',
                     dueDate: task.dueDate
                 })) || []
-            })) || [];
+            })) || [];            // Calculate initial progress based on module progress
+            const initialProgress = processedModules.length > 0
+                ? processedModules.reduce((acc, module) => acc + (module.progress || 0), 0) / processedModules.length
+                : 0;
 
-            const newProject = new Project({
+            console.log('type of initialProgress:', typeof initialProgress);
+            console.log('type of processedModules.progress:', typeof processedModules[0]?.progress);            const newProject = new Project({
                 title,
                 description: description || '',
                 startDate,
@@ -98,7 +102,7 @@ export async function POST(request) {
                 status: status || 'Planning',
                 priority: priority || 'Medium',
                 modules: processedModules,
-                progress: 0,
+                progress: initialProgress,
                 notes: notes || '',
             });
 
@@ -171,55 +175,17 @@ export async function POST(request) {
 
             return NextResponse.json(updatedProject);
         }
-
-        if (task === 'deleteProject') {
-            const { projectId } = data;
-
-            if (!projectId) {
-                return NextResponse.json({ 
-                    error: 'Project ID is required for deletion' 
-                }, { status: 400 });
-            }
-
-            const deletedProject = await Project.findByIdAndDelete(projectId);
-
-            if (!deletedProject) {
-                return NextResponse.json({ 
-                    error: 'Project not found' 
-                }, { status: 404 });
-            }
-
-            return NextResponse.json({ 
-                message: 'Project deleted successfully' 
-            });
-        }
-
-        if (task === 'updateProgress') {
-            const { projectId, progress } = data;
-
-            if (!projectId) {
-                return NextResponse.json({ 
-                    error: 'Project ID is required for progress update' 
-                }, { status: 400 });
-            }
-
-            if (typeof progress !== 'number' || progress < 0 || progress > 100) {
-                return NextResponse.json({ 
-                    error: 'Progress must be a number between 0 and 100' 
-                }, { status: 400 });
-            }
-
+        if(task === 'updateProgress') {
+            
+            const project = data.updatedProject;
             const updatedProject = await Project.findByIdAndUpdate(
-                projectId,
-                { progress },
+                project._id,
+                {
+                    progress: project.progress,
+                    modules: project.modules
+                },
                 { new: true }
             );
-
-            if (!updatedProject) {
-                return NextResponse.json({ 
-                    error: 'Project not found' 
-                }, { status: 404 });
-            }
 
             return NextResponse.json(updatedProject);
         }
@@ -232,6 +198,37 @@ export async function POST(request) {
         console.error('Error processing project:', error);
         return NextResponse.json(
             { message: 'Error processing project', error: error.message },
+            { status: 500 }
+        );
+    }
+}
+export async function DELETE(request) {
+    try {
+        await connectDB();
+        const { projectId } = await request.json();
+
+        if (!projectId) {
+            return NextResponse.json({ 
+                error: 'Project ID is required' 
+            }, { status: 400 });
+        }
+
+        const deletedProject = await Project.findByIdAndDelete(projectId);
+
+        if (!deletedProject) {
+            return NextResponse.json({ 
+                error: 'Project not found' 
+            }, { status: 404 });
+        }
+
+        return NextResponse.json({ 
+            message: 'Project deleted successfully' 
+        }, { status: 200 });
+
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        return NextResponse.json(
+            { message: 'Error deleting project', error: error.message },
             { status: 500 }
         );
     }

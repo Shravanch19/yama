@@ -182,7 +182,7 @@ const Add_Project = ({ isOpen, setIsOpen, existingProject, onSave }) => {
         startDate: format(new Date(), 'yyyy-MM-dd'),
         deadline: "",
         status: "Planning",
-        progress: [0],
+        progress: 0,
         modules: [],
         notes: ""
     });
@@ -248,7 +248,7 @@ const Add_Project = ({ isOpen, setIsOpen, existingProject, onSave }) => {
             startDate: format(new Date(), 'yyyy-MM-dd'),
             deadline: "",
             status: "Planning",
-            progress: [0],
+            progress: 0,
             modules: [],
             notes: ""
         });

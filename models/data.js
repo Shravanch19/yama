@@ -40,8 +40,8 @@ const projectSchema = new Schema({
         default: 'Planning'
     },
     progress: {
-        type: [Number],
-        default: [0],
+        type: Number,
+        default: 0,
     },
     modules: [{
         name: {
@@ -54,8 +54,8 @@ const projectSchema = new Schema({
             default: 'Not Started'
         },
         progress: {
-            type: [Number],
-            default: [0],
+            type: Number,
+            default: 0, 
         },
         startDate: Date,
         endDate: Date,

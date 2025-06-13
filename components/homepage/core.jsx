@@ -28,6 +28,9 @@ const Core = () => {
         { title: "Design Systems", level: "w-1/3" }
     ];
 
+    const MyProjects = [
+        { name: "Side Project", progress: 75 },]
+
     const Non_Negotiables = ["Meditation", "Gym Workout", "Code 2 hrs"];
 
     const Procrastinating_Tasks = ["Complete Side Project", "Finish Reading Book", "Organize Workspace"];
@@ -76,7 +79,7 @@ const Core = () => {
 
                         {/* Progress */}
                         <div className="flex flex-wrap justify-center gap-6 mb-10">
-                            {[{ name: "Alpha", progress: 75 }, { name: "Beta", progress: 40 }, { name: "Gamma", progress: 90 }].map(({ name, progress }) => (
+                            {MyProjects.map(({ name, progress }) => (
                                 <CircularProgress key={name} name={name} progress={progress} />
                             ))}
                         </div>
