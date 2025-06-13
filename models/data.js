@@ -1,6 +1,54 @@
 import mongoose from 'mongoose';
 const { Schema, models, model } = mongoose;
 
+// Task Schema
+const taskSchema = new Schema({
+    title: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    type: {
+        type: String,
+        required: true,
+        enum: ['deadline', 'nonNegotiable', 'procrastinating'],
+    },
+    deadline: {
+        type: Date,
+        required: function() {
+            return this.type === 'deadline';
+        }
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'completed'],
+        default: 'pending'
+    },
+    dailyTracking: {
+        type: [{
+            date: { type: Date },
+            completed: { type: Boolean, default: false }
+        }],
+        default: function() {
+            return this.type === 'nonNegotiable' ? [] : undefined;
+        }
+    },
+    lastResetDate: {
+        type: Date,
+        default: function() {
+            return this.type === 'nonNegotiable' ? new Date() : undefined;
+        }
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
 // Project Schema
 const projectSchema = new Schema({
 
@@ -134,5 +182,6 @@ learningSchema.pre('save', function (next) {
 
 const Project = models.Project || model('Project', projectSchema);
 const Learning = models.Learning || model('Learning', learningSchema);
+const Task = models.Task || model('Task', taskSchema);
 
-export { Project, Learning };
+export { Project, Learning, Task };

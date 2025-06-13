@@ -1,19 +1,145 @@
-import React from 'react'
+"use client"
+import React, { useState, useEffect } from 'react'
 import CircularProgress from "@/components/ui/CircularProgress"
 import DeadlineTaskCard from '../ui/DeadlineTaskCard'
 
 const Core = () => {
+    const [isLoading, setIsLoading] = useState({
+        projects: true,
+        learnings: true,
+        tasks: true
+    });
+    
+    const [loadingTaskId, setLoadingTaskId] = useState(null);
+    const [myProjects, setMyProjects] = useState([]);
+    const [learnings, setLearnings] = useState([]);
+    const [tasks, setTasks] = useState({
+        deadline: [],
+        nonNegotiable: [],
+        procrastinating: []
+    });
+    const [error, setError] = useState({
+        projects: null,
+        learnings: null,
+        tasks: null
+    });
 
-    const tasks_with_deadlines = [
-        { title: 'Submit Report', deadline: '2025-05-30T10:00:00Z' },
-        { title: 'Design Review', deadline: '2025-05-29T15:00:00Z' },
-    ];
+    const completeTask = async (type, taskId) => {
+        try {
+            setLoadingTaskId(taskId);
+            const response = await fetch('/api/tasks', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ type, taskId, status: 'completed' }),
+            });
 
-    const Rules_of_War = [
-        "Finish side project MVP",
-        "Write 1 blog post",
-        "Read 3 chapters"
-    ];
+            if (!response.ok) throw new Error('Failed to update task');
+
+            // Update local state to remove the completed task
+            setTasks(prev => ({
+                ...prev,
+                [type]: prev[type].filter(task => task._id !== taskId)
+            }));
+        } catch (err) {
+            console.error('Error completing task:', err);
+            setError(prev => ({ ...prev, tasks: err.message }));
+        } finally {
+            setLoadingTaskId(null);
+        }
+    };
+
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                setIsLoading(prev => ({ ...prev, projects: true }));
+                const response = await fetch('/api/projects');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch projects');
+                }
+
+                const data = await response.json();
+                const transformedProjects = data.map(project => ({
+                    name: project.title,
+                    progress: project.progress || 0
+                }));
+                
+                setMyProjects(transformedProjects);
+                setError(prev => ({ ...prev, projects: null }));
+            } catch (err) {
+                console.error('Error fetching projects:', err);
+                setError(prev => ({ ...prev, projects: err.message }));
+            } finally {
+                setIsLoading(prev => ({ ...prev, projects: false }));
+            }
+        };
+
+        const fetchLearnings = async () => {
+            try {
+                setIsLoading(prev => ({ ...prev, learnings: true }));
+                const response = await fetch('/api/learnings');
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch learnings');
+                }
+
+                const data = await response.json();
+                const transformedLearnings = data.map(learning => ({
+                    title: learning.title,
+                    level: `w-[${learning.progress}%]`
+                }));
+                
+                setLearnings(transformedLearnings);
+                setError(prev => ({ ...prev, learnings: null }));
+            } catch (err) {
+                console.error('Error fetching learnings:', err);
+                setError(prev => ({ ...prev, learnings: err.message }));
+            } finally {
+                setIsLoading(prev => ({ ...prev, learnings: false }));
+            }
+        };
+
+        const fetchTasks = async () => {
+            try {
+                setIsLoading(prev => ({ ...prev, tasks: true }));
+                
+                // Fetch all types of tasks in parallel
+                const [deadlineRes, nonNegotiableRes, procrastinatingRes] = await Promise.all([
+                    fetch('/api/tasks?type=deadline'),
+                    fetch('/api/tasks?type=nonNegotiable'),
+                    fetch('/api/tasks?type=procrastinating')
+                ]);
+
+                if (!deadlineRes.ok || !nonNegotiableRes.ok || !procrastinatingRes.ok) {
+                    throw new Error('Failed to fetch tasks');
+                }
+
+                const [deadline, nonNegotiable, procrastinating] = await Promise.all([
+                    deadlineRes.json(),
+                    nonNegotiableRes.json(),
+                    procrastinatingRes.json()
+                ]);
+
+                setTasks({
+                    deadline,
+                    nonNegotiable,
+                    procrastinating
+                });
+                setError(prev => ({ ...prev, tasks: null }));
+            } catch (err) {
+                console.error('Error fetching tasks:', err);
+                setError(prev => ({ ...prev, tasks: err.message }));
+            } finally {
+                setIsLoading(prev => ({ ...prev, tasks: false }));
+            }
+        };
+
+        fetchProjects();
+        fetchLearnings();
+        fetchTasks();
+    }, []);
 
     const News = [
         "🚀 New AI Tool Launch",
@@ -22,18 +148,7 @@ const Core = () => {
         "📈 Productivity Trends 2025"
     ];
 
-    const Learnings = [
-        { title: "Next.js Deep Dive", level: "w-1/2" },
-        { title: "Flutter Basics", level: "w-3/4" },
-        { title: "Design Systems", level: "w-1/3" }
-    ];
-
-    const MyProjects = [
-        { name: "Side Project", progress: 75 },]
-
     const Non_Negotiables = ["Meditation", "Gym Workout", "Code 2 hrs"];
-
-    const Procrastinating_Tasks = ["Complete Side Project", "Finish Reading Book", "Organize Workspace"];
 
     return (
         <main className="flex flex-col items-center justify-center">
@@ -42,20 +157,6 @@ const Core = () => {
 
                 {/* RULES & MOTIVATION FIRST */}
                 <div className="flex flex-col md:flex-row gap-8">
-
-                    {/* RULES OF WAR */}
-                    
-                    {/* <div className="bg-gradient-to-br from-gray-800 to-gray-700 rounded-2xl p-6 shadow-lg border border-blue-700 w-full md:max-w-[30vw]">
-                        <h2 className="text-2xl font-bold text-cyan-400 mb-4">🎯 Rules Of War</h2>
-                        <ul className="space-y-3">
-                            {Rules_of_War.map((goal, idx) => (
-                                <li key={idx} className="flex items-start gap-2 text-blue-100">
-                                    <span className="text-cyan-400 mt-1">•</span>
-                                    <span className="font-medium">{goal}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div> */}
 
                     {/* IMPORTANT NEWS */}
                     <div className="bg-gradient-to-br from-purple-800/30 to-purple-900/40 rounded-2xl p-6 shadow-lg border border-purple-600 w-full">
@@ -79,60 +180,125 @@ const Core = () => {
 
                         {/* Progress */}
                         <div className="flex flex-wrap justify-center gap-6 mb-10">
-                            {MyProjects.map(({ name, progress }) => (
-                                <CircularProgress key={name} name={name} progress={progress} />
-                            ))}
+                            {isLoading.projects ? (
+                                <div className="text-gray-400">Loading projects...</div>
+                            ) : error.projects ? (
+                                <div className="text-red-400">{error.projects}</div>
+                            ) : myProjects.length === 0 ? (
+                                <div className="text-gray-400">No projects found</div>
+                            ) : (
+                                myProjects.map(({ name, progress }) => (
+                                    <CircularProgress key={name} name={name} progress={progress} />
+                                ))
+                            )}
                         </div>
 
                         {/* Learning */}
                         <h2 className="text-2xl font-semibold text-blue-300 mb-4">📚 New Learning</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                            {Learnings.map((item, idx) => (
-                                <div key={idx} className="bg-gray-700 p-4 rounded-lg shadow-inner">
-                                    <p className="text-cyan-200 font-semibold">{item.title}</p>
-                                    <div className="h-2 bg-gray-600 rounded mt-2">
-                                        <div className={`h-2 bg-cyan-400 rounded ${item.level}`}></div>
+                            {isLoading.learnings ? (
+                                <div className="text-gray-400">Loading learnings...</div>
+                            ) : error.learnings ? (
+                                <div className="text-red-400">{error.learnings}</div>
+                            ) : learnings.length === 0 ? (
+                                <div className="text-gray-400">No learnings found</div>
+                            ) : (
+                                learnings.map((item, idx) => (
+                                    <div key={idx} className="bg-gray-700 p-4 rounded-lg shadow-inner transform transition-all duration-300 hover:scale-105">
+                                        <p className="text-cyan-200 font-semibold">{item.title}</p>
+                                        <div className="h-2 bg-gray-600 rounded mt-2 overflow-hidden">
+                                            <div 
+                                                className="h-2 bg-cyan-400 rounded transition-all duration-700 ease-out"
+                                                style={{ width: `${parseInt(item.level.match(/\d+/)[0], 10)}%` }}
+                                            ></div>
+                                        </div>
+                                        <p className="text-xs text-cyan-300 mt-1 text-right">
+                                            {parseInt(item.level.match(/\d+/)[0], 10)}%
+                                        </p>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
 
-                        {/* Calendar */}
-                        <h2 className="text-2xl font-semibold text-blue-300 mb-2">📆 Habits Calendar</h2>
-                        <div className="bg-gray-700 p-4 rounded-lg shadow-inner mb-8">
-                            <div className='flex items-center justify-evenly gap-6'>
-                                {[...Array(4)].map((_, i) => (
-                                    <img
-                                        key={i}
-                                        src="https://static.vecteezy.com/system/resources/previews/060/515/955/non_2x/calendar-work-planner-free-png.png"
-                                        alt="Calendar"
-                                        className="w-20 h-20 grayscale contrast-125 opacity-90"
-                                    />
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Deadlines */}
+                        {/* Deadline Tasks */}
                         <h2 className="text-2xl font-semibold text-pink-300 mb-2">🛑 Deadline Tasks</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {tasks_with_deadlines.map((task, index) => (
-                                <DeadlineTaskCard key={index} task={task} />
-                            ))}
+                            {isLoading.tasks ? (
+                                <div className="text-gray-400">Loading deadline tasks...</div>
+                            ) : error.tasks ? (
+                                <div className="text-red-400">{error.tasks}</div>
+                            ) : tasks.deadline.length === 0 ? (
+                                <div className="text-gray-400">No deadline tasks</div>
+                            ) : (
+                                tasks.deadline.slice(0, 4).map((task, index) => (
+                                    <DeadlineTaskCard key={task._id || index} task={task} onComplete={completeTask} loading={loadingTaskId === task._id} />
+                                ))
+                            )}
                         </div>
                     </section>
 
                     {/* SIDE PANEL */}
                     <aside className="flex flex-col gap-6">
+                        {/* Procrastinating Tasks */}
                         <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-gray-600">
                             <h2 className="text-xl font-bold text-red-400 mb-3">🕒 Procrastinating Tasks</h2>
-                            <ul className="list-disc list-inside text-gray-300 space-y-2">
-                                {Procrastinating_Tasks.map((task, idx) => (
-                                    <li key={idx}>{task}</li>
-                                ))}
-
-                            </ul>
+                            {isLoading.tasks ? (
+                                <p className="text-gray-400">Loading procrastinating tasks...</p>
+                            ) : error.tasks ? (
+                                <p className="text-red-400">{error.tasks}</p>                            ) : tasks.procrastinating.length === 0 ? (
+                                <p className="text-gray-400">No procrastinating tasks</p>
+                            ) : (
+                                <ul className="list-disc list-inside text-gray-300 space-y-2">
+                                    {tasks.procrastinating.slice(0, 5).map((task) => (
+                                        <li key={task._id} className="group flex items-center justify-between">
+                                            <span>{task.title}</span>
+                                            <button
+                                                onClick={() => completeTask('procrastinating', task._id)}
+                                                disabled={loadingTaskId === task._id}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm"
+                                            >
+                                                {loadingTaskId === task._id ? (
+                                                    <span className="inline-block animate-spin">↻</span>
+                                                ) : (
+                                                    <>✓ Done</>
+                                                )}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
 
+                        {/* Non-Negotiable Tasks */}
+                        <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-green-600">
+                            <h2 className="text-xl font-bold text-green-400 mb-3">💪 Non-Negotiable Tasks</h2>
+                            {isLoading.tasks ? (
+                                <p className="text-gray-400">Loading non-negotiable tasks...</p>
+                            ) : error.tasks ? (
+                                <p className="text-red-400">{error.tasks}</p>                            ) : tasks.nonNegotiable.length === 0 ? (
+                                <p className="text-gray-400">No non-negotiable tasks</p>
+                            ) : (
+                                <ul className="list-disc list-inside text-gray-300 space-y-2">
+                                    {tasks.nonNegotiable.slice(0, 5).map((task) => (
+                                        <li key={task._id} className="group flex items-center justify-between">
+                                            <span>{task.title}</span>
+                                            <button
+                                                onClick={() => completeTask('nonNegotiable', task._id)}
+                                                disabled={loadingTaskId === task._id}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm"
+                                            >
+                                                {loadingTaskId === task._id ? (
+                                                    <span className="inline-block animate-spin">↻</span>
+                                                ) : (
+                                                    <>✓ Done</>
+                                                )}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+{/* 
                         <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-green-600">
                             <h2 className="text-xl font-bold text-green-400 mb-3">🚫 Non Negotiable</h2>
                             <ul className="list-disc list-inside text-gray-300 space-y-2">
@@ -140,7 +306,7 @@ const Core = () => {
                                     <li key={idx}>{item}</li>
                                 ))}
                             </ul>
-                        </div>
+                        </div> */}
 
                         <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-yellow-600">
                             <h2 className="text-xl font-bold text-yellow-400 mb-3">🧠 Idea Capture</h2>
@@ -172,7 +338,7 @@ const Core = () => {
                 </div>
             </div>
         </main>
-    )
-}
+    );
+};
 
-export default Core
+export default Core;
