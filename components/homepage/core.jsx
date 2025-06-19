@@ -18,11 +18,11 @@ const Core = () => {
         deadline: [],
         nonNegotiable: [],
         procrastinating: []
-    });
-    const [error, setError] = useState({
+    });    const [error, setError] = useState({
         projects: null,
         learnings: null,
-        tasks: null
+        tasks: null,
+        basicInputs: null
     });
     const [basicInputs, setBasicInputs] = useState({
         wakeUpTime: '',
@@ -60,11 +60,13 @@ const Core = () => {
         if (!timeStr) return true; // Allow empty values
         const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
         return timeRegex.test(timeStr);
-    };
-
-    const handleBasicInputChange = (field, value) => {
-        // Only update if the value is empty or matches time format
-        if (!value || validateTimeFormat(value)) {
+    };    const handleBasicInputChange = (field, value) => {
+        // Allow any input, but restrict to 5 characters (HH:MM format)
+        if (value.length <= 5) {
+            // If the input length is 2 and no colon yet, add it automatically
+            if (value.length === 2 && !value.includes(':')) {
+                value = value + ':';
+            }
             setBasicInputs(prev => ({
                 ...prev,
                 [field]: value
@@ -419,14 +421,19 @@ const Core = () => {
                                     <div key={key} className="flex flex-col">
                                         <label htmlFor={key} className="text-sm font-medium text-blue-100 mb-1">
                                             {label}
-                                        </label>
-                                        <input
+                                        </label>                        <input
                                             type="text"
                                             id={key}
                                             value={basicInputs[key]}
                                             onChange={(e) => handleBasicInputChange(key, e.target.value)}
                                             placeholder={placeholder}
-                                            className="px-4 py-2 bg-gray-900 border border-blue-500 text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                            maxLength={5}
+                                            pattern="[0-9:]*"
+                                            className={`px-4 py-2 bg-gray-900 border ${
+                                                basicInputs[key] && !validateTimeFormat(basicInputs[key])
+                                                    ? 'border-red-500'
+                                                    : 'border-blue-500'
+                                            } text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400`}
                                         />
                                         <span className="text-xs text-blue-300 mt-1">Format: HH:MM (e.g., 09:30)</span>
                                     </div>
