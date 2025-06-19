@@ -7,9 +7,10 @@ const Core = () => {
     const [isLoading, setIsLoading] = useState({
         projects: true,
         learnings: true,
-        tasks: true
+        tasks: true,
+        basicInputs: true
     });
-    
+
     const [loadingTaskId, setLoadingTaskId] = useState(null);
     const [myProjects, setMyProjects] = useState([]);
     const [learnings, setLearnings] = useState([]);
@@ -22,6 +23,11 @@ const Core = () => {
         projects: null,
         learnings: null,
         tasks: null
+    });
+    const [basicInputs, setBasicInputs] = useState({
+        wakeUpTime: '',
+        meditationDuration: '',
+        timeWastedRandomly: ''
     });
 
     const completeTask = async (type, taskId) => {
@@ -50,12 +56,70 @@ const Core = () => {
         }
     };
 
+    const validateTimeFormat = (timeStr) => {
+        if (!timeStr) return true; // Allow empty values
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        return timeRegex.test(timeStr);
+    };
+
+    const handleBasicInputChange = (field, value) => {
+        // Only update if the value is empty or matches time format
+        if (!value || validateTimeFormat(value)) {
+            setBasicInputs(prev => ({
+                ...prev,
+                [field]: value
+            }));
+        }
+    };
+
+    const handleBasicInputSubmit = async () => {
+        try {
+            // Validate all time inputs
+            const invalidInputs = Object.entries(basicInputs).filter(
+                ([key, value]) => value && !validateTimeFormat(value)
+            );
+
+            if (invalidInputs.length > 0) {
+                throw new Error('Please enter time in HH:MM format');
+            }
+
+            setIsLoading(prev => ({ ...prev, basicInputs: true }));
+            const response = await fetch('/api/basic-inputs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(basicInputs),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to save basic inputs');
+            }
+
+            // Clear the inputs after successful submission
+            setBasicInputs({
+                wakeUpTime: '',
+                meditationDuration: '',
+                timeWastedRandomly: ''
+            });
+            
+            setError(prev => ({ ...prev, basicInputs: null }));
+        } catch (err) {
+            console.error('Error saving basic inputs:', err);
+            setError(prev => ({ ...prev, basicInputs: err.message }));
+        } finally {
+            setIsLoading(prev => ({ ...prev, basicInputs: false }));
+        }
+    };
+
     useEffect(() => {
         const fetchProjects = async () => {
             try {
                 setIsLoading(prev => ({ ...prev, projects: true }));
                 const response = await fetch('/api/projects');
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch projects');
                 }
@@ -65,7 +129,7 @@ const Core = () => {
                     name: project.title,
                     progress: project.progress || 0
                 }));
-                
+
                 setMyProjects(transformedProjects);
                 setError(prev => ({ ...prev, projects: null }));
             } catch (err) {
@@ -80,7 +144,7 @@ const Core = () => {
             try {
                 setIsLoading(prev => ({ ...prev, learnings: true }));
                 const response = await fetch('/api/learnings');
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch learnings');
                 }
@@ -90,7 +154,7 @@ const Core = () => {
                     title: learning.title,
                     level: `w-[${learning.progress}%]`
                 }));
-                
+
                 setLearnings(transformedLearnings);
                 setError(prev => ({ ...prev, learnings: null }));
             } catch (err) {
@@ -104,7 +168,7 @@ const Core = () => {
         const fetchTasks = async () => {
             try {
                 setIsLoading(prev => ({ ...prev, tasks: true }));
-                
+
                 // Fetch all types of tasks in parallel
                 const [deadlineRes, nonNegotiableRes, procrastinatingRes] = await Promise.all([
                     fetch('/api/tasks?type=deadline'),
@@ -136,9 +200,36 @@ const Core = () => {
             }
         };
 
+        const fetchBasicInputs = async () => {
+            try {
+                setIsLoading(prev => ({ ...prev, basicInputs: true }));
+                const response = await fetch('/api/basic-inputs');
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch basic inputs');
+                }
+
+                const data = await response.json();
+                if (data) {
+                    setBasicInputs({
+                        wakeUpTime: data.wakeUpTime || '',
+                        meditationDuration: data.meditationDuration || '',
+                        timeWastedRandomly: data.timeWastedRandomly || ''
+                    });
+                }
+                setError(prev => ({ ...prev, basicInputs: null }));
+            } catch (err) {
+                console.error('Error fetching basic inputs:', err);
+                setError(prev => ({ ...prev, basicInputs: err.message }));
+            } finally {
+                setIsLoading(prev => ({ ...prev, basicInputs: false }));
+            }
+        };
+
         fetchProjects();
         fetchLearnings();
         fetchTasks();
+        fetchBasicInputs();
     }, []);
 
     const News = [
@@ -181,7 +272,7 @@ const Core = () => {
                         {/* Progress */}
                         <div className="flex flex-wrap justify-center gap-6 mb-10">
                             {isLoading.projects ? (
-                                <div className="text-gray-400">Loading projects...</div>
+                                <div className="text-gray-400</svg>">Loading projects...</div>
                             ) : error.projects ? (
                                 <div className="text-red-400">{error.projects}</div>
                             ) : myProjects.length === 0 ? (
@@ -207,7 +298,7 @@ const Core = () => {
                                     <div key={idx} className="bg-gray-700 p-4 rounded-lg shadow-inner transform transition-all duration-300 hover:scale-105">
                                         <p className="text-cyan-200 font-semibold">{item.title}</p>
                                         <div className="h-2 bg-gray-600 rounded mt-2 overflow-hidden">
-                                            <div 
+                                            <div
                                                 className="h-2 bg-cyan-400 rounded transition-all duration-700 ease-out"
                                                 style={{ width: `${parseInt(item.level.match(/\d+/)[0], 10)}%` }}
                                             ></div>
@@ -245,9 +336,9 @@ const Core = () => {
                             {isLoading.tasks ? (
                                 <p className="text-gray-400">Loading procrastinating tasks...</p>
                             ) : error.tasks ? (
-                                <p className="text-red-400">{error.tasks}</p>                            ) : tasks.procrastinating.length === 0 ? (
-                                <p className="text-gray-400">No procrastinating tasks</p>
-                            ) : (
+                                <p className="text-red-400">{error.tasks}</p>) : tasks.procrastinating.length === 0 ? (
+                                    <p className="text-gray-400">No procrastinating tasks</p>
+                                ) : (
                                 <ul className="list-disc list-inside text-gray-300 space-y-2">
                                     {tasks.procrastinating.slice(0, 5).map((task) => (
                                         <li key={task._id} className="group flex items-center justify-between">
@@ -275,9 +366,9 @@ const Core = () => {
                             {isLoading.tasks ? (
                                 <p className="text-gray-400">Loading non-negotiable tasks...</p>
                             ) : error.tasks ? (
-                                <p className="text-red-400">{error.tasks}</p>                            ) : tasks.nonNegotiable.length === 0 ? (
-                                <p className="text-gray-400">No non-negotiable tasks</p>
-                            ) : (
+                                <p className="text-red-400">{error.tasks}</p>) : tasks.nonNegotiable.length === 0 ? (
+                                    <p className="text-gray-400">No non-negotiable tasks</p>
+                                ) : (
                                 <ul className="list-disc list-inside text-gray-300 space-y-2">
                                     {tasks.nonNegotiable.slice(0, 5).map((task) => (
                                         <li key={task._id} className="group flex items-center justify-between">
@@ -298,7 +389,7 @@ const Core = () => {
                                 </ul>
                             )}
                         </div>
-{/* 
+                        {/* 
                         <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-green-600">
                             <h2 className="text-xl font-bold text-green-400 mb-3">🚫 Non Negotiable</h2>
                             <ul className="list-disc list-inside text-gray-300 space-y-2">
@@ -320,19 +411,37 @@ const Core = () => {
                         <div className="bg-gray-800 rounded-2xl p-6 shadow-xl border border-blue-600">
                             <h2 className="text-2xl font-bold text-blue-300 mb-4">🧘 Basic Inputs</h2>
                             <div className="space-y-4">
-                                {["Wake Up Time", "Meditation Duration", "Time Wasted Randomly"].map((label, idx) => (
-                                    <div key={idx} className="flex flex-col">
-                                        <label htmlFor={`input-${idx}`} className="text-sm font-medium text-blue-100 mb-1">
+                                { [
+                                    { label: "Wake Up Time", key: "wakeUpTime", placeholder: "HH:MM" },
+                                    { label: "Meditation Duration", key: "meditationDuration", placeholder: "HH:MM" },
+                                    { label: "Time Wasted Randomly", key: "timeWastedRandomly", placeholder: "HH:MM" }
+                                ].map(({ label, key, placeholder }) => (
+                                    <div key={key} className="flex flex-col">
+                                        <label htmlFor={key} className="text-sm font-medium text-blue-100 mb-1">
                                             {label}
                                         </label>
                                         <input
                                             type="text"
-                                            id={`input-${idx}`} placeholder={label}
+                                            id={key}
+                                            value={basicInputs[key]}
+                                            onChange={(e) => handleBasicInputChange(key, e.target.value)}
+                                            placeholder={placeholder}
                                             className="px-4 py-2 bg-gray-900 border border-blue-500 text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                                         />
+                                        <span className="text-xs text-blue-300 mt-1">Format: HH:MM (e.g., 09:30)</span>
                                     </div>
                                 ))}
                             </div>
+                            <button 
+                                onClick={handleBasicInputSubmit}
+                                disabled={isLoading.basicInputs}
+                                className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading.basicInputs ? 'Saving...' : 'Update'}
+                            </button>
+                            {error.basicInputs && (
+                                <p className="mt-2 text-red-400 text-sm">{error.basicInputs}</p>
+                            )}
                         </div>
                     </aside>
                 </div>
