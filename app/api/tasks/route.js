@@ -184,7 +184,10 @@ export async function DELETE(request) {
     try {
         await connectDB();
         const { searchParams } = new URL(request.url);
+        console.log(searchParams);
         const taskId = searchParams.get('id');
+        console.log(taskId);
+        
 
         if (!taskId) {
             return NextResponse.json(

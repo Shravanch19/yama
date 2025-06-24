@@ -1,115 +1,31 @@
-"use client"
-import React, { useState, useEffect } from 'react'
-import DeadlineTaskCard from '@/components/ui/DeadlineTaskCard'
-import TaskModal from '@/components/ui/TaskModal'
-import DeleteConfirmModal from '@/components/ui/DeleteConfirmModal'
+"use client";
+import React, { useState, useEffect } from 'react';
+// import DeadlineTaskCard from '@/components/ui/DeadlineTaskCard';
+import TaskModal from '@/components/ui/TaskModal';
+import DeleteConfirmModal from '@/components/ui/DeleteConfirmModal';
+import { formatDistanceToNow, isBefore } from 'date-fns';
+
+
+const TASK_TYPES = ['deadline', 'nonNegotiable', 'procrastinating'];
 
 const TodoPage = () => {
-  const [isLoading, setIsLoading] = useState({
-    deadline: true,
-    nonNegotiable: true,
-    procrastinating: true
-  });
-  
+  const [tasks, setTasks] = useState({});
+  const [isLoading, setIsLoading] = useState({});
+  const [error, setError] = useState({});
+  const [modalOpen, setModalOpen] = useState({});
   const [loadingTaskId, setLoadingTaskId] = useState(null);
-  
-  const [tasks, setTasks] = useState({
-    deadline: [],
-    nonNegotiable: [],
-    procrastinating: []
-  });
-  
-  const [error, setError] = useState({
-    deadline: null,
-    nonNegotiable: null,
-    procrastinating: null
-  });
-  
-  const [modalOpen, setModalOpen] = useState({
-    deadline: false,
-    nonNegotiable: false,
-    procrastinating: false
-  });
-  
-  const [deleteConfirm, setDeleteConfirm] = useState({
-    show: false,
-    taskId: null,
-    taskType: null
-  });
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, taskId: null, taskType: null });
 
-  // Function to add new task
-  const addTask = async (type, task) => {
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type, task }),
-      });
+  useEffect(() => {
+    TASK_TYPES.forEach(type => fetchTasks(type));
+  }, []);
 
-      if (!response.ok) throw new Error('Failed to add task');
-
-      // Refresh tasks after adding
-      fetchTasks(type);
-    } catch (err) {
-      setError(prev => ({ ...prev, [type]: err.message }));
-    }
-  };
-  // Function to mark task as complete
-  const completeTask = async (type, taskId) => {
-    try {
-      setLoadingTaskId(taskId);
-      const response = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          type, 
-          taskId, 
-          status: 'completed',
-          // Add dailyComplete flag for non-negotiable tasks
-          ...(type === 'nonNegotiable' ? { dailyComplete: true } : {})
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update task');
-
-      // Refresh tasks after updating
-      fetchTasks(type);
-    } catch (err) {
-      setError(prev => ({ ...prev, [type]: err.message }));
-    } finally {
-      setLoadingTaskId(null);
-    }
-  };
-
-  const deleteTask = async (type, taskId) => {
-    try {
-      const response = await fetch(`/api/tasks?id=${taskId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete task');
-
-      // Refresh tasks after deleting
-      fetchTasks(type);
-      setDeleteConfirm({ show: false, taskId: null, type: null });
-    } catch (err) {
-      setError(prev => ({ ...prev, [type]: err.message }));
-    }
-  };
-
-  // Function to fetch tasks
   const fetchTasks = async (type) => {
+    setIsLoading(prev => ({ ...prev, [type]: true }));
     try {
-      setIsLoading(prev => ({ ...prev, [type]: true }));
-      const response = await fetch(`/api/tasks?type=${type}`);
-      
-      if (!response.ok) throw new Error(`Failed to fetch ${type} tasks`);
-
-      const data = await response.json();
+      const res = await fetch(`/api/tasks?type=${type}`);
+      if (!res.ok) throw new Error(`Failed to fetch ${type} tasks`);
+      const data = await res.json();
       setTasks(prev => ({ ...prev, [type]: data }));
       setError(prev => ({ ...prev, [type]: null }));
     } catch (err) {
@@ -118,245 +34,127 @@ const TodoPage = () => {
       setIsLoading(prev => ({ ...prev, [type]: false }));
     }
   };
-  // Function to check if a non-negotiable task is completed for today
-  const isCompletedForToday = (task) => {
-    if (!task.dailyTracking || task.dailyTracking.length === 0) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const todayEntry = task.dailyTracking.find(entry => {
-      const entryDate = new Date(entry.date);
-      entryDate.setHours(0, 0, 0, 0);
-      return entryDate.getTime() === today.getTime();
-    });
 
-    return todayEntry?.completed || false;
+  const handleTaskChange = async (type, method, body, callback) => {
+    try {
+      setLoadingTaskId(body.taskId || null);
+      const res = await fetch('/api/tasks' + (method === 'DELETE' ? `?id=${body.taskId}` : ''), {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: method !== 'DELETE' ? JSON.stringify({ type, ...body }) : undefined,
+      });
+      if (!res.ok) throw new Error(`${method} task failed`);
+      fetchTasks(type);
+      if (callback) callback();
+    } catch (err) {
+      setError(prev => ({ ...prev, [type]: err.message }));
+    } finally {
+      setLoadingTaskId(null);
+    }
   };
 
-  // Fetch all tasks on component mount
-  useEffect(() => {
-    fetchTasks('deadline');
-    fetchTasks('nonNegotiable');
-    fetchTasks('procrastinating');
-  }, []);
+  const isCompletedForToday = task => {
+    const today = new Date().setHours(0, 0, 0, 0);
+    return task.dailyTracking?.some(d => new Date(d.date).setHours(0, 0, 0, 0) === today && d.completed);
+  };
+
+  const renderTaskCard = (type, task, index) => {
+    const completedToday = isCompletedForToday(task);
+
+    if (type === 'deadline') {
+      return (
+        <DeadlineTaskCard
+          key={task._id || index}
+          task={task}
+          type={type}
+          isCompletedForToday={completedToday}
+          onComplete={() => handleTaskChange(type, 'PUT', { taskId: task._id, status: 'completed' })}
+          onDelete={() => setDeleteConfirm({ show: true, taskId: task._id, taskType: type })}
+          loadingTaskId={loadingTaskId}
+        />
+      );
+    }
+
+    return (
+      <div
+        key={task._id || index}
+        className="bg-gray-700/50 rounded-lg p-4 flex items-center justify-between gap-4 group hover:bg-gray-700 transition-colors relative"
+      >
+        <div className="flex items-center gap-3 flex-1">
+          <span className={`text-${type === 'nonNegotiable' ? 'cyan' : 'red'}-100 ${completedToday ? 'line-through text-opacity-50' : ''}`}>{task.title}</span>
+          {completedToday && <span className="text-xs text-green-400 px-2 py-1 bg-green-400/10 rounded">✓ Done today</span>}
+          {type === 'nonNegotiable' && <span className="text-xs text-gray-500">{task.dailyTracking?.filter(d => d.completed).length || 0} days completed</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          {!completedToday && (
+            <button
+              onClick={() => handleTaskChange(type, 'PUT', { taskId: task._id, status: 'completed', ...(type === 'nonNegotiable' && { dailyComplete: true }) })}
+              disabled={loadingTaskId === task._id}
+              className="px-3 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-1"
+            >
+              {loadingTaskId === task._id ? <span className="inline-block animate-spin">↻</span> : <>✓ Complete</>}
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteConfirm({ show: true, taskId: task._id, taskType: type })}
+            className="px-3 py-1 bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition-colors opacity-0 group-hover:opacity-100"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const Section = ({ type, title, color }) => (
+    <section className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className={`text-2xl font-semibold text-${color}-300`}>{title}</h2>
+        <button
+          onClick={() => setModalOpen(prev => ({ ...prev, [type]: true }))}
+          className={`px-4 py-2 bg-${color}-500/20 text-${color}-300 rounded-lg hover:bg-${color}-500/30 flex items-center gap-2 group`}
+        >
+          <span>Add Task</span><span className="group-hover:rotate-90 transition-transform">+</span>
+        </button>
+      </div>
+      <div className="space-y-4">
+        {isLoading[type] ? (
+          <p className="text-gray-400">Loading...</p>
+        ) : error[type] ? (
+          <p className="text-red-400">{error[type]}</p>
+        ) : !tasks[type]?.length ? (
+          <p className="text-gray-400">No tasks</p>
+        ) : (
+          tasks[type].map((task, index) => renderTaskCard(type, task, index))
+        )}
+      </div>
+    </section>
+  );
 
   return (
     <main className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-6 py-12">
         <h1 className="text-4xl font-bold text-purple-300 mb-8">📋 Task Management</h1>
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Deadline Tasks Section */}
-          <section className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-pink-300">🛑 Deadline Tasks</h2>
-              <button
-                onClick={() => setModalOpen(prev => ({ ...prev, deadline: true }))}
-                className="px-4 py-2 bg-pink-500/20 text-pink-300 rounded-lg hover:bg-pink-500/30 transition-colors flex items-center gap-2 group"
-              >
-                <span>Add Task</span>
-                <span className="group-hover:rotate-90 transition-transform duration-300">+</span>
-              </button>
-            </div>
-            <div className="space-y-4">
-              {isLoading.deadline ? (
-                <p className="text-gray-400">Loading deadline tasks...</p>
-              ) : error.deadline ? (
-                <p className="text-red-400">{error.deadline}</p>
-              ) : tasks.deadline.length === 0 ? (
-                <p className="text-gray-400">No deadline tasks</p>
-              ) : (
-                tasks.deadline.map((task, index) => (
-                  <div key={index} className="relative group">
-                    <DeadlineTaskCard task={task} />
-                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">                      <button
-                        onClick={() => completeTask('deadline', task._id)}
-                        disabled={loadingTaskId === task._id}
-                        className="p-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 transition-colors disabled:opacity-50"
-                      >
-                        {loadingTaskId === task._id ? (
-                          <span className="inline-block animate-spin">↻</span>
-                        ) : (
-                          '✓'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm({ show: true, taskId: task._id, taskType: 'deadline' })}
-                        className="p-1 bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition-colors"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          {/* Non-Negotiable Tasks Section */}
-          <section className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-cyan-300">💪 Non-Negotiable</h2>
-              <button
-                onClick={() => setModalOpen(prev => ({ ...prev, nonNegotiable: true }))}
-                className="px-4 py-2 bg-cyan-500/20 text-cyan-300 rounded-lg hover:bg-cyan-500/30 transition-colors flex items-center gap-2 group"
-              >
-                <span>Add Task</span>
-                <span className="group-hover:rotate-90 transition-transform duration-300">+</span>
-              </button>
-            </div>
-            <div className="space-y-4">
-              {isLoading.nonNegotiable ? (
-                <p className="text-gray-400">Loading non-negotiable tasks...</p>
-              ) : error.nonNegotiable ? (
-                <p className="text-red-400">{error.nonNegotiable}</p>              ) : tasks.nonNegotiable.length === 0 ? (
-                <p className="text-gray-400">No non-negotiable tasks</p>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center mb-4 text-sm border-b border-gray-700 pb-3">
-                    <span className="text-gray-400">Daily Progress</span>
-                    <div className="flex gap-2 items-center">
-                      <div className="h-2 w-24 bg-gray-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-cyan-500 to-cyan-300 transition-all duration-500"
-                          style={{ 
-                            width: `${(tasks.nonNegotiable.filter(t => isCompletedForToday(t)).length / tasks.nonNegotiable.length) * 100}%` 
-                          }}
-                        />
-                      </div>
-                      <span className="text-green-400">{tasks.nonNegotiable.filter(t => isCompletedForToday(t)).length}</span>
-                      <span className="text-gray-400">/</span>
-                      <span className="text-gray-300">{tasks.nonNegotiable.length}</span>
-                    </div>
-                  </div>
-                  {tasks.nonNegotiable.map((task, index) => {
-                    const todayTracking = task.dailyTracking?.find(d => {
-                        const trackDate = new Date(d.date);
-                        const today = new Date();
-                        return trackDate.toDateString() === today.toDateString();
-                    });
-                    
-                    return (
-                      <div
-                        key={task._id || index}
-                        className="bg-gray-700/50 rounded-lg p-4 flex items-center justify-between gap-4 group hover:bg-gray-700 transition-colors relative"
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <span className={`text-cyan-100 ${todayTracking?.completed ? 'line-through text-cyan-300/50' : ''}`}>
-                            {task.title}
-                          </span>
-                          {todayTracking?.completed && (
-                            <span className="text-xs text-green-400 px-2 py-1 bg-green-400/10 rounded">✓ Done today</span>
-                          )}
-                          <span className="text-xs text-gray-500">
-                            {task.dailyTracking?.filter(d => d.completed).length || 0} days completed
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!todayTracking?.completed && (
-                            <button
-                              onClick={() => completeTask('nonNegotiable', task._id)}
-                              disabled={loadingTaskId === task._id}
-                              className="px-3 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-1"
-                            >
-                              {loadingTaskId === task._id ? (
-                                <span className="inline-block animate-spin">↻</span>
-                              ) : (
-                                <>✓ Mark Done</>
-                              )}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => setDeleteConfirm({ show: true, taskId: task._id, taskType: 'nonNegotiable' })}
-                            className="px-3 py-1 bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Procrastinating Tasks Section */}
-          <section className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-red-300">🕒 Procrastinating</h2>
-              <button
-                onClick={() => setModalOpen(prev => ({ ...prev, procrastinating: true }))}
-                className="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors flex items-center gap-2 group"
-              >
-                <span>Add Task</span>
-                <span className="group-hover:rotate-90 transition-transform duration-300">+</span>
-              </button>
-            </div>
-            <div className="space-y-4">
-              {isLoading.procrastinating ? (
-                <p className="text-gray-400">Loading procrastinating tasks...</p>
-              ) : error.procrastinating ? (
-                <p className="text-red-400">{error.procrastinating}</p>
-              ) : tasks.procrastinating.length === 0 ? (
-                <p className="text-gray-400">No procrastinating tasks</p>
-              ) : (
-                tasks.procrastinating.map((task, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-700/50 rounded-lg p-4 flex items-center justify-between gap-4 group hover:bg-gray-700 transition-colors relative"
-                  >
-                    <span className="text-red-100">{task.title}</span>
-                    <div className="flex items-center gap-2">
-                      <button                        onClick={() => completeTask('procrastinating', task._id)}
-                        disabled={loadingTaskId === task._id}
-                        className="px-3 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50 flex items-center gap-1"
-                      >
-                        {loadingTaskId === task._id ? (
-                          <span className="inline-block animate-spin">↻</span>
-                        ) : (
-                          <>✓ Complete</>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm({ show: true, taskId: task._id, taskType: 'procrastinating' })}
-                        className="px-3 py-1 bg-red-500/20 text-red-300 rounded hover:bg-red-500/30 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+          <Section type="deadline" title="🛑 Deadline Tasks" color="pink" />
+          <Section type="nonNegotiable" title="💪 Non-Negotiable" color="cyan" />
+          <Section type="procrastinating" title="🕒 Procrastinating" color="red" />
         </div>
 
-        {/* Task Modals */}
-        <TaskModal
-          isOpen={modalOpen.deadline}
-          onClose={() => setModalOpen(prev => ({ ...prev, deadline: false }))}
-          onSubmit={(task) => addTask('deadline', task)}
-          type="deadline"
-        />
-        <TaskModal
-          isOpen={modalOpen.nonNegotiable}
-          onClose={() => setModalOpen(prev => ({ ...prev, nonNegotiable: false }))}
-          onSubmit={(task) => addTask('nonNegotiable', task)}
-          type="nonNegotiable"
-        />
-        <TaskModal
-          isOpen={modalOpen.procrastinating}
-          onClose={() => setModalOpen(prev => ({ ...prev, procrastinating: false }))}
-          onSubmit={(task) => addTask('procrastinating', task)}
-          type="procrastinating"
-        />
+        {TASK_TYPES.map(type => (
+          <TaskModal
+            key={type}
+            isOpen={modalOpen[type]}
+            onClose={() => setModalOpen(prev => ({ ...prev, [type]: false }))}
+            onSubmit={task => handleTaskChange(type, 'POST', { task })}
+            type={type}
+          />
+        ))}
 
-        {/* Delete Confirmation Modal */}
         <DeleteConfirmModal
           isOpen={deleteConfirm.show}
           onClose={() => setDeleteConfirm({ show: false, taskId: null, taskType: null })}
-          onConfirm={deleteTask}
+          onConfirm={() => handleTaskChange(deleteConfirm.taskType, 'DELETE', { taskId: deleteConfirm.taskId }, () => setDeleteConfirm({ show: false, taskId: null, taskType: null }))}
           taskType={deleteConfirm.taskType}
         />
       </div>
@@ -365,3 +163,48 @@ const TodoPage = () => {
 };
 
 export default TodoPage;
+
+const DeadlineTaskCard = ({ task, onComplete, onDelete, loadingTaskId }) => {
+  const [completed, setCompleted] = useState(false);
+
+  const deadlineDate = new Date(task.deadline);
+  const isOverdue = isBefore(deadlineDate, new Date());
+  const timeRemaining = formatDistanceToNow(deadlineDate, { addSuffix: true });
+
+  const urgencyColor = isOverdue
+    ? 'bg-red-800 text-red-100'
+    : deadlineDate.getTime() - Date.now() < 1000 * 60 * 60 * 24
+    ? 'bg-yellow-600 text-yellow-100'
+    : 'bg-green-700 text-green-100';
+
+  const toggleLocalComplete = () => setCompleted(!completed);
+
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 shadow-lg hover:shadow-xl transition group relative">
+      <div className="flex items-start justify-between">
+        <h3 className={`text-lg font-semibold tracking-wide ${completed ? 'line-through text-gray-500' : 'text-white'}`}>
+          {task.title}
+        </h3>
+        <div className="flex gap-2">
+          <button
+            onClick={onComplete}
+            disabled={loadingTaskId === task._id}
+            className="p-1 text-green-300 rounded hover:bg-green-500/20 transition-opacity opacity-0 group-hover:opacity-100"
+          >
+            {loadingTaskId === task._id ? <span className="inline-block animate-spin">↻</span> : '✓'}
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1 text-red-300 rounded hover:bg-red-500/20 transition-opacity opacity-0 group-hover:opacity-100"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      <div className={`text-xs px-3 py-1 rounded-full font-medium self-start mt-2 w-fit ${urgencyColor}`}>
+        {isOverdue ? '⚠️ Overdue' : `⏳ Due ${timeRemaining}`}
+      </div>
+    </div>
+  );
+};
