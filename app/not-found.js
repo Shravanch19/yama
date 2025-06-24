@@ -6,7 +6,7 @@ export default function NotFound() {
         <div className="mb-8">
           <h1 className="text-6xl font-bold text-pink-300 mb-4">404</h1>
           <h2 className="text-2xl font-semibold text-cyan-300 mb-2">Page Not Found</h2>
-          <p className="text-gray-300">Oops! The page you are looking for does not exist.</p>
+          <p className="text-gray-300">Sorry, This Page is not completed yet.</p>
         </div>
         <Link 
           href="/"

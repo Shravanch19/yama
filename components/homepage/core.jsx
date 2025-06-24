@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import CircularProgress from "@/components/ui/CircularProgress"
 import DeadlineTaskCard from '../ui/DeadlineTaskCard'
+import TaskListPanel from '../ui/TaskListPanel'
 
 const Core = () => {
     const [isLoading, setIsLoading] = useState({
@@ -18,7 +19,8 @@ const Core = () => {
         deadline: [],
         nonNegotiable: [],
         procrastinating: []
-    });    const [error, setError] = useState({
+    });
+    const [error, setError] = useState({
         projects: null,
         learnings: null,
         tasks: null,
@@ -60,7 +62,8 @@ const Core = () => {
         if (!timeStr) return true; // Allow empty values
         const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
         return timeRegex.test(timeStr);
-    };    const handleBasicInputChange = (field, value) => {
+    };
+    const handleBasicInputChange = (field, value) => {
         // Allow any input, but restrict to 5 characters (HH:MM format)
         if (value.length <= 5) {
             // If the input length is 2 and no colon yet, add it automatically
@@ -106,7 +109,7 @@ const Core = () => {
                 meditationDuration: '',
                 timeWastedRandomly: ''
             });
-            
+
             setError(prev => ({ ...prev, basicInputs: null }));
         } catch (err) {
             console.error('Error saving basic inputs:', err);
@@ -117,88 +120,47 @@ const Core = () => {
     };
 
     useEffect(() => {
-        const fetchProjects = async () => {
+
+        const fetchAllData = async () => {
             try {
-                setIsLoading(prev => ({ ...prev, projects: true }));
-                const response = await fetch('/api/projects');
+                setIsLoading({ projects: true, learnings: true, tasks: true });
+
+                const response = await fetch('/api/dashboard');
 
                 if (!response.ok) {
-                    throw new Error('Failed to fetch projects');
+                    throw new Error('Failed to fetch dashboard data');
                 }
 
-                const data = await response.json();
-                const transformedProjects = data.map(project => ({
+                const { projects, learnings, procrastinating, nonNegotiable, deadline } = await response.json();
+
+                const transformedProjects = projects.map(project => ({
                     name: project.title,
                     progress: project.progress || 0
                 }));
-
                 setMyProjects(transformedProjects);
-                setError(prev => ({ ...prev, projects: null }));
-            } catch (err) {
-                console.error('Error fetching projects:', err);
-                setError(prev => ({ ...prev, projects: err.message }));
-            } finally {
-                setIsLoading(prev => ({ ...prev, projects: false }));
-            }
-        };
 
-        const fetchLearnings = async () => {
-            try {
-                setIsLoading(prev => ({ ...prev, learnings: true }));
-                const response = await fetch('/api/learnings');
-
-                if (!response.ok) {
-                    throw new Error('Failed to fetch learnings');
-                }
-
-                const data = await response.json();
-                const transformedLearnings = data.map(learning => ({
+                const transformedLearnings = learnings.map(learning => ({
                     title: learning.title,
                     level: `w-[${learning.progress}%]`
                 }));
-
                 setLearnings(transformedLearnings);
-                setError(prev => ({ ...prev, learnings: null }));
-            } catch (err) {
-                console.error('Error fetching learnings:', err);
-                setError(prev => ({ ...prev, learnings: err.message }));
-            } finally {
-                setIsLoading(prev => ({ ...prev, learnings: false }));
-            }
-        };
-
-        const fetchTasks = async () => {
-            try {
-                setIsLoading(prev => ({ ...prev, tasks: true }));
-
-                // Fetch all types of tasks in parallel
-                const [deadlineRes, nonNegotiableRes, procrastinatingRes] = await Promise.all([
-                    fetch('/api/tasks?type=deadline'),
-                    fetch('/api/tasks?type=nonNegotiable'),
-                    fetch('/api/tasks?type=procrastinating')
-                ]);
-
-                if (!deadlineRes.ok || !nonNegotiableRes.ok || !procrastinatingRes.ok) {
-                    throw new Error('Failed to fetch tasks');
-                }
-
-                const [deadline, nonNegotiable, procrastinating] = await Promise.all([
-                    deadlineRes.json(),
-                    nonNegotiableRes.json(),
-                    procrastinatingRes.json()
-                ]);
 
                 setTasks({
-                    deadline,
+                    procrastinating,
                     nonNegotiable,
-                    procrastinating
+                    deadline
                 });
-                setError(prev => ({ ...prev, tasks: null }));
+
+                setError({ projects: null, learnings: null, tasks: null });
             } catch (err) {
-                console.error('Error fetching tasks:', err);
-                setError(prev => ({ ...prev, tasks: err.message }));
+                console.error('Error fetching dashboard data:', err);
+                setError({
+                    projects: err.message,
+                    learnings: err.message,
+                    tasks: err.message
+                });
             } finally {
-                setIsLoading(prev => ({ ...prev, tasks: false }));
+                setIsLoading({ projects: false, learnings: false, tasks: false });
             }
         };
 
@@ -228,200 +190,132 @@ const Core = () => {
             }
         };
 
-        fetchProjects();
-        fetchLearnings();
-        fetchTasks();
+        fetchAllData();
         fetchBasicInputs();
     }, []);
 
-    const News = [
-        "🚀 New AI Tool Launch",
-        "📅 Tech Conference 2023",
-        "🔐 New Privacy Policy",
-        "📈 Productivity Trends 2025"
-    ];
-
-    const Non_Negotiables = ["Meditation", "Gym Workout", "Code 2 hrs"];
 
     return (
         <main className="flex flex-col items-center justify-center">
-            {/* MAIN DASHBOARD */}
-            <div className="container mx-auto px-6 py-12 rounded-3xl shadow-inner flex flex-col gap-12 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 my-10">
+            <div className="container mx-auto px-6 py-12 my-10 rounded-3xl shadow-inner bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700">
 
-                {/* RULES & MOTIVATION FIRST */}
-                <div className="flex flex-col md:flex-row gap-8">
+                {/* Dashboard Top Section */}
+                <section className="flex flex-col md:flex-row gap-8">
+                    {/* Placeholder for To-Do List or Additional Panels */}
+                </section>
 
-                    {/* IMPORTANT NEWS */}
-                    <div className="bg-gradient-to-br from-purple-800/30 to-purple-900/40 rounded-2xl p-6 shadow-lg border border-purple-600 w-full">
-                        <h2 className="text-2xl font-bold text-purple-300 mb-4">💭 Important News</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {News.map((title, idx) => (
-                                <div key={idx} className="bg-purple-900/60 p-5 rounded-xl border border-purple-700 text-purple-100">
-                                    <p className="font-semibold mb-1">{title}</p>
-                                    <p className="text-sm text-purple-300">Description for {title}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                {/* Core Content Grid */}
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-12">
 
-                </div>
+                    {/* Main Panel */}
+                    <section className="col-span-2 bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-700">
+                        <h1 className="text-3xl font-bold text-cyan-400 mb-8">⚙️ Core Projects & Plans</h1>
 
-                {/* CORE PANEL */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                    <section className="col-span-2 bg-gray-800 rounded-xl p-6 shadow-md border border-gray-700">
-                        <h1 className="text-3xl font-bold text-cyan-400 mb-6">⚙️ Core Projects & Plans</h1>
-
-                        {/* Progress */}
-                        <div className="flex flex-wrap justify-center gap-6 mb-10">
-                            {isLoading.projects ? (
-                                <div className="text-gray-400</svg>">Loading projects...</div>
-                            ) : error.projects ? (
-                                <div className="text-red-400">{error.projects}</div>
-                            ) : myProjects.length === 0 ? (
-                                <div className="text-gray-400">No projects found</div>
-                            ) : (
-                                myProjects.map(({ name, progress }) => (
-                                    <CircularProgress key={name} name={name} progress={progress} />
-                                ))
-                            )}
+                        {/* Project Progress */}
+                        <div className="mb-12 p-6 shadow-xl border rounded-xl border-blue-600 ">
+                            <h2 className="text-2xl font-semibold text-cyan-300 mb-4">🚀 Project Progress</h2>
+                            <div className="flex flex-wrap justify-center gap-6">
+                                {isLoading.projects ? (
+                                    <p className="text-gray-400">Loading projects...</p>
+                                ) : error.projects ? (
+                                    <p className="text-red-400">{error.projects}</p>
+                                ) : myProjects.length === 0 ? (
+                                    <p className="text-gray-400">No projects found</p>
+                                ) : (
+                                    myProjects.map(({ name, progress }) => (
+                                        <CircularProgress key={name} name={name} progress={progress} />
+                                    ))
+                                )}
+                            </div>
                         </div>
 
-                        {/* Learning */}
-                        <h2 className="text-2xl font-semibold text-blue-300 mb-4">📚 New Learning</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                            {isLoading.learnings ? (
-                                <div className="text-gray-400">Loading learnings...</div>
-                            ) : error.learnings ? (
-                                <div className="text-red-400">{error.learnings}</div>
-                            ) : learnings.length === 0 ? (
-                                <div className="text-gray-400">No learnings found</div>
-                            ) : (
-                                learnings.map((item, idx) => (
-                                    <div key={idx} className="bg-gray-700 p-4 rounded-lg shadow-inner transform transition-all duration-300 hover:scale-105">
-                                        <p className="text-cyan-200 font-semibold">{item.title}</p>
-                                        <div className="h-2 bg-gray-600 rounded mt-2 overflow-hidden">
-                                            <div
-                                                className="h-2 bg-cyan-400 rounded transition-all duration-700 ease-out"
-                                                style={{ width: `${parseInt(item.level.match(/\d+/)[0], 10)}%` }}
-                                            ></div>
+                        {/* Learning Panel */}
+                        <div className="mb-12 p-6 shadow-xl border rounded-xl border-green-600">
+                            <h2 className="text-2xl font-semibold text-blue-300 mb-4">📚 New Learnings</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {isLoading.learnings ? (
+                                    <p className="text-gray-400">Loading learnings...</p>
+                                ) : error.learnings ? (
+                                    <p className="text-red-400">{error.learnings}</p>
+                                ) : learnings.length === 0 ? (
+                                    <p className="text-gray-400">No learnings found</p>
+                                ) : (
+                                    learnings.map((item, idx) => (
+                                        <div key={idx} className="bg-gray-700 p-4 rounded-lg hover:scale-105 transition-transform">
+                                            <p className="text-cyan-200 font-semibold">{item.title}</p>
+                                            <div className="mt-2 bg-gray-600 h-2 rounded overflow-hidden">
+                                                <div
+                                                    className="h-full bg-cyan-400 transition-all"
+                                                    style={{ width: `${parseInt(item.level.match(/\d+/)[0], 10)}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-cyan-300 text-right mt-1">
+                                                {parseInt(item.level.match(/\d+/)[0], 10)}%
+                                            </p>
                                         </div>
-                                        <p className="text-xs text-cyan-300 mt-1 text-right">
-                                            {parseInt(item.level.match(/\d+/)[0], 10)}%
-                                        </p>
-                                    </div>
-                                ))
-                            )}
+                                    ))
+                                )}
+                            </div>
                         </div>
 
                         {/* Deadline Tasks */}
-                        <h2 className="text-2xl font-semibold text-pink-300 mb-2">🛑 Deadline Tasks</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {isLoading.tasks ? (
-                                <div className="text-gray-400">Loading deadline tasks...</div>
-                            ) : error.tasks ? (
-                                <div className="text-red-400">{error.tasks}</div>
-                            ) : tasks.deadline.length === 0 ? (
-                                <div className="text-gray-400">No deadline tasks</div>
-                            ) : (
-                                tasks.deadline.slice(0, 4).map((task, index) => (
-                                    <DeadlineTaskCard key={task._id || index} task={task} onComplete={completeTask} loading={loadingTaskId === task._id} />
-                                ))
-                            )}
+                        <div>
+                            <h2 className="text-2xl font-semibold text-pink-300 mb-4">🛑 Deadline Tasks</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {isLoading.tasks ? (
+                                    <p className="text-gray-400">Loading deadline tasks...</p>
+                                ) : error.tasks ? (
+                                    <p className="text-red-400">{error.tasks}</p>
+                                ) : tasks.deadline.length === 0 ? (
+                                    <p className="text-gray-400">No deadline tasks</p>
+                                ) : (
+                                    tasks.deadline.slice(0, 4).map((task, index) => (
+                                        <DeadlineTaskCard key={task._id || index} task={task} onComplete={completeTask} loading={loadingTaskId === task._id} />
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </section>
 
-                    {/* SIDE PANEL */}
-                    <aside className="flex flex-col gap-6">
+                    {/* Sidebar Panel */}
+                    <aside className="flex flex-col gap-8">
+
                         {/* Procrastinating Tasks */}
-                        <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-gray-600">
-                            <h2 className="text-xl font-bold text-red-400 mb-3">🕒 Procrastinating Tasks</h2>
-                            {isLoading.tasks ? (
-                                <p className="text-gray-400">Loading procrastinating tasks...</p>
-                            ) : error.tasks ? (
-                                <p className="text-red-400">{error.tasks}</p>) : tasks.procrastinating.length === 0 ? (
-                                    <p className="text-gray-400">No procrastinating tasks</p>
-                                ) : (
-                                <ul className="list-disc list-inside text-gray-300 space-y-2">
-                                    {tasks.procrastinating.slice(0, 5).map((task) => (
-                                        <li key={task._id} className="group flex items-center justify-between">
-                                            <span>{task.title}</span>
-                                            <button
-                                                onClick={() => completeTask('procrastinating', task._id)}
-                                                disabled={loadingTaskId === task._id}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm"
-                                            >
-                                                {loadingTaskId === task._id ? (
-                                                    <span className="inline-block animate-spin">↻</span>
-                                                ) : (
-                                                    <>✓ Done</>
-                                                )}
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
+                        <TaskListPanel
+                            title="🕒 Procrastinating Tasks"
+                            tasks={tasks.procrastinating}
+                            loading={isLoading.tasks}
+                            error={error.tasks}
+                            type="procrastinating"
+                            color="red"
+                            completeTask={completeTask}
+                            loadingTaskId={loadingTaskId}
+                        />
 
                         {/* Non-Negotiable Tasks */}
-                        <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-green-600">
-                            <h2 className="text-xl font-bold text-green-400 mb-3">💪 Non-Negotiable Tasks</h2>
-                            {isLoading.tasks ? (
-                                <p className="text-gray-400">Loading non-negotiable tasks...</p>
-                            ) : error.tasks ? (
-                                <p className="text-red-400">{error.tasks}</p>) : tasks.nonNegotiable.length === 0 ? (
-                                    <p className="text-gray-400">No non-negotiable tasks</p>
-                                ) : (
-                                <ul className="list-disc list-inside text-gray-300 space-y-2">
-                                    {tasks.nonNegotiable.slice(0, 5).map((task) => (
-                                        <li key={task._id} className="group flex items-center justify-between">
-                                            <span>{task.title}</span>
-                                            <button
-                                                onClick={() => completeTask('nonNegotiable', task._id)}
-                                                disabled={loadingTaskId === task._id}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 px-2 py-1 bg-green-500/20 text-green-300 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm"
-                                            >
-                                                {loadingTaskId === task._id ? (
-                                                    <span className="inline-block animate-spin">↻</span>
-                                                ) : (
-                                                    <>✓ Done</>
-                                                )}
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                        {/* 
-                        <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-green-600">
-                            <h2 className="text-xl font-bold text-green-400 mb-3">🚫 Non Negotiable</h2>
-                            <ul className="list-disc list-inside text-gray-300 space-y-2">
-                                {Non_Negotiables.map((item, idx) => (
-                                    <li key={idx}>{item}</li>
-                                ))}
-                            </ul>
-                        </div> */}
+                        <TaskListPanel
+                            title="💪 Non-Negotiable Tasks"
+                            tasks={tasks.nonNegotiable}
+                            loading={isLoading.tasks}
+                            error={error.tasks}
+                            type="nonNegotiable"
+                            color="green"
+                            completeTask={completeTask}
+                            loadingTaskId={loadingTaskId}
+                        />
 
-                        <div className="bg-gray-800 rounded-xl shadow-md p-6 border border-yellow-600">
-                            <h2 className="text-xl font-bold text-yellow-400 mb-3">🧠 Idea Capture</h2>
-                            <textarea
-                                className="w-full p-2 bg-gray-900 border border-yellow-500 text-white rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                placeholder="Write down your ideas..."
-                                rows={4}
-                            ></textarea>
-                        </div>
-
-                        <div className="bg-gray-800 rounded-2xl p-6 shadow-xl border border-blue-600">
+                        {/* Basic Inputs */}
+                        <div className="bg-gray-800 p-6 rounded-2xl border border-blue-600 shadow-xl">
                             <h2 className="text-2xl font-bold text-blue-300 mb-4">🧘 Basic Inputs</h2>
                             <div className="space-y-4">
-                                { [
+                                {[
                                     { label: "Wake Up Time", key: "wakeUpTime", placeholder: "HH:MM" },
                                     { label: "Meditation Duration", key: "meditationDuration", placeholder: "HH:MM" },
                                     { label: "Time Wasted Randomly", key: "timeWastedRandomly", placeholder: "HH:MM" }
                                 ].map(({ label, key, placeholder }) => (
                                     <div key={key} className="flex flex-col">
-                                        <label htmlFor={key} className="text-sm font-medium text-blue-100 mb-1">
-                                            {label}
-                                        </label>                        <input
+                                        <label htmlFor={key} className="text-sm font-medium text-blue-100 mb-1">{label}</label>
+                                        <input
                                             type="text"
                                             id={key}
                                             value={basicInputs[key]}
@@ -429,20 +323,16 @@ const Core = () => {
                                             placeholder={placeholder}
                                             maxLength={5}
                                             pattern="[0-9:]*"
-                                            className={`px-4 py-2 bg-gray-900 border ${
-                                                basicInputs[key] && !validateTimeFormat(basicInputs[key])
-                                                    ? 'border-red-500'
-                                                    : 'border-blue-500'
-                                            } text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400`}
+                                            className={`px-4 py-2 bg-gray-900 border ${basicInputs[key] && !validateTimeFormat(basicInputs[key]) ? 'border-red-500' : 'border-blue-500'} text-white rounded-lg shadow focus:outline-none focus:ring-2 focus:ring-blue-400`}
                                         />
                                         <span className="text-xs text-blue-300 mt-1">Format: HH:MM (e.g., 09:30)</span>
                                     </div>
                                 ))}
                             </div>
-                            <button 
+                            <button
                                 onClick={handleBasicInputSubmit}
                                 disabled={isLoading.basicInputs}
-                                className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading.basicInputs ? 'Saving...' : 'Update'}
                             </button>
@@ -451,10 +341,13 @@ const Core = () => {
                             )}
                         </div>
                     </aside>
-                </div>
+                </section>
             </div>
         </main>
+
     );
 };
 
 export default Core;
+
+
