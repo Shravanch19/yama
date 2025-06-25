@@ -31,6 +31,7 @@ export async function POST(request) {
             timeWastedRandomly: convertTimeToMinutes(data.timeWastedRandomly)
         };
 
+
         // Check if an entry already exists for today
         const existingEntry = await BasicInput.findOne({
             date: {

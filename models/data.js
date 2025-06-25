@@ -15,7 +15,7 @@ const taskSchema = new Schema({
     },
     deadline: {
         type: Date,
-        required: function() {
+        required: function () {
             return this.type === 'deadline';
         }
     },
@@ -29,13 +29,13 @@ const taskSchema = new Schema({
             date: { type: Date },
             completed: { type: Boolean, default: false }
         }],
-        default: function() {
+        default: function () {
             return this.type === 'nonNegotiable' ? [] : undefined;
         }
     },
     lastResetDate: {
         type: Date,
-        default: function() {
+        default: function () {
             return this.type === 'nonNegotiable' ? new Date() : undefined;
         }
     },
@@ -103,7 +103,7 @@ const projectSchema = new Schema({
         },
         progress: {
             type: Number,
-            default: 0, 
+            default: 0,
         },
         startDate: Date,
         endDate: Date,
@@ -180,8 +180,34 @@ learningSchema.pre('save', function (next) {
     next();
 });
 
+const performanceSchema = new Schema({
+    performance: {
+        type: Number,
+        default: 0
+    },
+    record: [{
+        date : {
+            type : Date
+        },
+        tasks : [{
+            good : {
+                type : Number
+            },
+            bad : [{
+                name : {
+                    type : String
+                },
+                score : {
+                    type : Number
+                }
+            }]
+        }]
+    }]
+})
+
 const Project = models.Project || model('Project', projectSchema);
 const Learning = models.Learning || model('Learning', learningSchema);
 const Task = models.Task || model('Task', taskSchema);
+const Performance = models.Performance || model('Performance', performanceSchema)
 
-export { Project, Learning, Task };
+export { Project, Learning, Task, Performance };
