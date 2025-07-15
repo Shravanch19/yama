@@ -48,6 +48,17 @@ export async function POST(request) {
         }
 
         const basicInput = await BasicInput.create(formattedData);
+
+        // Update performance after daily input submission
+        try {
+            const { updatePerformance } = await import("@/config/updatePerformance");
+            if (data.wakeUpTime) await updatePerformance('dailyInput', 'wokeUpEarly');
+            if (data.meditationDuration) await updatePerformance('dailyInput', 'meditated');
+            if (data.timeWastedRandomly) await updatePerformance('dailyInput', 'wastedTime', { minutes: data.timeWastedRandomly });
+        } catch (perfErr) {
+            console.error('Failed to update performance:', perfErr);
+        }
+
         return NextResponse.json(basicInput, { status: 201 });
     } catch (error) {
         console.error('Error in basic-inputs POST:', error);

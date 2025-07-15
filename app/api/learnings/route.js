@@ -68,6 +68,13 @@ const taskHandlers = {
                 ? 'Completed'
                 : 'In Progress';
         await learning.save();
+        // Update performance after learning progress update
+        try {
+            const { updatePerformance } = await import("@/config/updatePerformance");
+            await updatePerformance('learning', 'chapterCompleted', { learningId });
+        } catch (perfErr) {
+            console.error('Failed to update performance:', perfErr);
+        }
         return NextResponse.json(learning);
     },
 
@@ -95,6 +102,13 @@ const taskHandlers = {
                 ? 'Completed'
                 : 'In Progress';
         await learning.save();
+        // Update performance after learning progress update
+        try {
+            const { updatePerformance } = await import("@/config/updatePerformance");
+            await updatePerformance('learning', 'chapterCompleted', { learningId });
+        } catch (perfErr) {
+            console.error('Failed to update performance:', perfErr);
+        }
         return NextResponse.json(learning);
     },
 };

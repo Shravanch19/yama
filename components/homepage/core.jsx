@@ -3,6 +3,27 @@ import React, { useState, useEffect } from 'react'
 import CircularProgress from "@/components/ui/CircularProgress"
 import DeadlineTaskCard from '../ui/DeadlineTaskCard'
 import TaskListPanel from '../ui/TaskListPanel'
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 const Core = () => {
     const [isLoading, setIsLoading] = useState({
@@ -199,6 +220,77 @@ const Core = () => {
         <main className="flex flex-col items-center justify-center">
             <div className="container mx-auto px-6 py-12 my-10 rounded-3xl shadow-inner bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700">
 
+                {/* Stock Market-like Performance Chart */}
+                <div className="mb-12 bg-gray-800 rounded-xl shadow-lg p-6 border border-green-600">
+                    {/* Dummy performance history for stock-like chart */}
+                    {/* This can be replaced with real data later */}
+                    {(() => {
+                        const performanceHistory = [
+                            { date: '2025-06-10', value: 10 },
+                            { date: '2025-06-11', value: 15 },
+                            { date: '2025-06-12', value: 12 },
+                            { date: '2025-06-13', value: 12 },
+                            { date: '2025-06-14', value: 11 },
+                            { date: '2025-06-15', value: 13 },
+                            { date: '2025-06-16', value: 12 },
+                            { date: '2025-06-17', value: 17 },
+                            { date: '2025-06-18', value: 21 },
+                            { date: '2025-06-19', value: 19 },
+                        ];
+                        const perfHistoryLabels = performanceHistory.map(entry =>
+                            new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        );
+                        const perfHistoryValues = performanceHistory.map(entry => entry.value);
+                        const perfHistoryChart = {
+                            labels: perfHistoryLabels,
+                            datasets: [
+                                {
+                                    label: 'Performance (Stock Style)',
+                                    data: perfHistoryValues,
+                                    borderColor: perfHistoryValues[perfHistoryValues.length - 1] >= perfHistoryValues[0] ? 'rgb(34,197,94)' : 'rgb(239,68,68)',
+                                    backgroundColor: perfHistoryValues[perfHistoryValues.length - 1] >= perfHistoryValues[0] ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                                    fill: true,
+                                    tension: 0.2,
+                                    pointRadius: 0,
+                                    borderWidth: 3,
+                                },
+                            ],
+                        };
+                        const perfHistoryOptions = {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false },
+                                title: {
+                                    display: true,
+                                    text: '📈 Performance Over Time (Stock Chart)',
+                                    color: '#E5E7EB',
+                                    font: { family: "'Inter', sans-serif", size: 18, weight: 'bold' },
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => `Score: ${context.parsed.y}`,
+                                    },
+                                },
+                            },
+                            scales: {
+                                x: {
+                                    grid: { color: '#374151' },
+                                    ticks: { color: '#E5E7EB' },
+                                },
+                                y: {
+                                    grid: { color: '#374151' },
+                                    ticks: { color: '#E5E7EB' },
+                                    beginAtZero: false,
+                                },
+                            },
+                            elements: {
+                                line: { borderJoinStyle: 'round' },
+                            },
+                        };
+                        return <Line data={perfHistoryChart} options={perfHistoryOptions} height={80} />;
+                    })()}
+                </div>
+
                 {/* Dashboard Top Section */}
                 <section className="flex flex-col md:flex-row gap-8">
                     {/* Placeholder for To-Do List or Additional Panels */}
@@ -349,5 +441,3 @@ const Core = () => {
 };
 
 export default Core;
-
-

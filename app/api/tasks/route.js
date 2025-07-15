@@ -169,6 +169,14 @@ export async function PUT(request) {
             );
         }
 
+        // Update performance after task update
+        try {
+            const { updatePerformance } = await import("@/config/updatePerformance");
+            await updatePerformance('task', status, { taskId });
+        } catch (perfErr) {
+            console.error('Failed to update performance:', perfErr);
+        }
+
         return NextResponse.json(updatedTask);
     } catch (error) {
         console.error('Error updating task:', error);

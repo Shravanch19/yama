@@ -167,6 +167,20 @@ const Calendar = () => {
     }
   }
 
+  // Dummy performance history for stock-like chart
+  const performanceHistory = [
+    { date: '2025-06-10', value: 10 },
+    { date: '2025-06-11', value: 15 },
+    { date: '2025-06-12', value: 12 },
+    { date: '2025-06-13', value: 12 },
+    { date: '2025-06-14', value: 11 },
+    { date: '2025-06-15', value: 13 },
+    { date: '2025-06-16', value: 12 },
+    { date: '2025-06-17', value: 17 },
+    { date: '2025-06-18', value: 21 },
+    { date: '2025-06-19', value: 19 },
+  ];
+
   const { basicInputs, performanceMetrics } = performanceData
 
   // Prepare data for Wake-up Time Trend
@@ -228,6 +242,60 @@ const Calendar = () => {
       },
     ],
   }
+
+  // Prepare data for Stock Market-like Performance Chart
+  const perfHistoryLabels = performanceHistory.map(entry =>
+    new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  );
+  const perfHistoryValues = performanceHistory.map(entry => entry.value);
+
+  const perfHistoryChart = {
+    labels: perfHistoryLabels,
+    datasets: [
+      {
+        label: 'Performance (Stock Style)',
+        data: perfHistoryValues,
+        borderColor: perfHistoryValues[perfHistoryValues.length-1] >= perfHistoryValues[0] ? 'rgb(34,197,94)' : 'rgb(239,68,68)', // green if up, red if down
+        backgroundColor: perfHistoryValues[perfHistoryValues.length-1] >= perfHistoryValues[0] ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+        fill: true,
+        tension: 0.2,
+        pointRadius: 0,
+        borderWidth: 3,
+      },
+    ],
+  };
+
+  const perfHistoryOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: '📈 Performance Over Time (Stock Chart)',
+        color: '#E5E7EB',
+        font: { family: "'Inter', sans-serif", size: 18, weight: 'bold' },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => `Score: ${context.parsed.y}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: '#374151' },
+        ticks: { color: '#E5E7EB' },
+      },
+      y: {
+        grid: { color: '#374151' },
+        ticks: { color: '#E5E7EB' },
+        beginAtZero: false,
+      },
+    },
+    elements: {
+      line: { borderJoinStyle: 'round' },
+    },
+  };
 
   const chartOptions = {
     responsive: true,
@@ -326,6 +394,10 @@ const Calendar = () => {
         <h1 className="text-3xl font-bold text-blue-300 mb-8">📊 Performance Analytics</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Stock Market-like Performance Chart */}
+          <div className="col-span-1 lg:col-span-2 bg-gray-800 rounded-xl shadow-lg p-6 border border-green-600">
+            <Line data={perfHistoryChart} options={perfHistoryOptions} height={80} />
+          </div>
           {/* Wake-up Time Trend */}
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-blue-600">
             <Line data={wakeUpTimeChart} options={lineOptions} />

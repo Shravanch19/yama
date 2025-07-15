@@ -173,6 +173,14 @@ export async function POST(request) {
                 }, { status: 404 });
             }
 
+            // Update performance after project update
+            try {
+                const { updatePerformance } = await import("@/config/updatePerformance");
+                await updatePerformance('project', 'taskCompleted', { projectId });
+            } catch (perfErr) {
+                console.error('Failed to update performance:', perfErr);
+            }
+
             return NextResponse.json(updatedProject);
         }
         if(task === 'updateProgress') {
@@ -186,6 +194,14 @@ export async function POST(request) {
                 },
                 { new: true }
             );
+
+            // Update performance after project progress update
+            try {
+                const { updatePerformance } = await import("@/config/updatePerformance");
+                await updatePerformance('project', 'moduleCompleted', { projectId: project._id });
+            } catch (perfErr) {
+                console.error('Failed to update performance:', perfErr);
+            }
 
             return NextResponse.json(updatedProject);
         }

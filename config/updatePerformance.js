@@ -11,6 +11,7 @@ export async function updatePerformance(type, action, data = {}) {
         { upsert: true, new: true }
     );
 
+    
     let score = 0;
     let bad = null;
 
