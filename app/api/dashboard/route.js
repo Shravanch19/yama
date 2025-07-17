@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Project, Learning, Task } from '@/models/data';
 import connectDB from '@/config/db';
+import { errorResponse, successResponse } from '../utils';
 
 export async function GET() {
     try {
@@ -14,9 +15,9 @@ export async function GET() {
             Task.find({ type: "nonNegotiable", status: { $ne: "completed" } }).sort({ createdAt: -1 }).lean()
         ]);
 
-        return NextResponse.json({ learnings, projects, procrastinating, deadline, nonNegotiable });
+        return NextResponse.json(successResponse({ learnings, projects, procrastinating, deadline, nonNegotiable }).json);
     } catch (error) {
         console.error('API Error:', error);
-        return NextResponse.json({ message: error.message }, { status: 500 });
+        return NextResponse.json(errorResponse(error.message, 500).json, { status: 500 });
     }
 }

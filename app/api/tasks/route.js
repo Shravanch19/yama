@@ -1,66 +1,112 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/config/db';
 import { Task } from '@/models/data';
+import { errorResponse, successResponse } from '../utils';
+import { formatDistanceToNow, isBefore } from 'date-fns';
 
-// GET route to fetch tasks
-export async function GET(request) {
+// --- Utility Functions ---
+function normalizeToMidnight(date = new Date()) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function logError(context, error) {
+    console.error(`[Task API] ${context}:`, error);
+}
+
+async function ensureDB() {
     try {
         await connectDB();
-        const { searchParams } = new URL(request.url);
-        const type = searchParams.get('type');
-
-        let query = {};
-        if (type) {
-            query.type = type;
-        }
-
-        // For non-negotiable tasks, we need to check and reset daily status
-        if (type === 'nonNegotiable') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            // Find tasks that need to be reset (haven't been reset today)
-            const tasksToReset = await Task.find({
-                type: 'nonNegotiable',
-                lastResetDate: { $lt: today }
-            });
-
-            // Reset daily tracking for these tasks
-            for (const task of tasksToReset) {
-                task.dailyTracking.push({
-                    date: today,
-                    completed: false
-                });
-                task.lastResetDate = today;
-                await task.save();
-            }
-        }
-
-        // Only fetch non-completed tasks by default
-        if (type !== 'nonNegotiable') {
-            query.status = { $ne: 'completed' };
-        }
-
-        const tasks = await Task.find(query).sort({ createdAt: -1 });
-        return NextResponse.json(tasks);
-    } catch (error) {
-        console.error('Error fetching tasks:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch tasks' },
-            { status: 500 }
-        );
+    } catch (err) {
+        throw new Error('Database connection failed');
     }
 }
 
-// POST route to create new task
-export async function POST(request) {
-    try {
-        await connectDB();
-        const { type, task } = await request.json();
+// Reset daily tracking for non-negotiable tasks if needed
+async function resetNonNegotiableTasksIfNeeded() {
+    const today = normalizeToMidnight();
+    const tasksToReset = await Task.find({
+        type: 'nonNegotiable',
+        lastResetDate: { $lt: today }
+    });
+    for (const task of tasksToReset) {
+        task.dailyTracking.push({ date: today, completed: false });
+        task.lastResetDate = today;
+        await task.save();
+    }
+}
 
+// --- GET: Fetch Tasks ---
+export async function GET(request) {
+    try {
+        await ensureDB();
+        const { searchParams } = new URL(request.url);
+        const type = searchParams.get('type');
+        let query = {};
+        if (type) query.type = type;
+
+        if (type === 'nonNegotiable') {
+            await resetNonNegotiableTasksIfNeeded();
+        } else {
+            // Only fetch non-completed tasks by default
+            query.status = { $ne: 'completed' };
+        }
+
+        const tasks = await Task.find(query).sort({ createdAt: -1 }).lean();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const processed = tasks.map(task => {
+            // isCompletedForToday
+            let isCompletedForToday = false;
+            if (task.dailyTracking && Array.isArray(task.dailyTracking)) {
+                isCompletedForToday = task.dailyTracking.some(d => {
+                    const dDate = new Date(d.date);
+                    dDate.setHours(0, 0, 0, 0);
+                    return dDate.getTime() === today.getTime() && d.completed;
+                });
+            }
+            // daysCompleted (for nonNegotiable)
+            let daysCompleted = 0;
+            if (task.type === 'nonNegotiable' && task.dailyTracking && Array.isArray(task.dailyTracking)) {
+                daysCompleted = task.dailyTracking.filter(d => d.completed).length;
+            }
+            // Deadline task fields
+            let isOverdue = false;
+            let timeRemaining = null;
+            let urgencyColor = null;
+            if (task.type === 'deadline' && task.deadline) {
+                const deadlineDate = new Date(task.deadline);
+                isOverdue = isBefore(deadlineDate, new Date());
+                timeRemaining = formatDistanceToNow(deadlineDate, { addSuffix: true });
+                urgencyColor = isOverdue
+                    ? 'bg-red-800 text-red-100'
+                    : deadlineDate.getTime() - Date.now() < 1000 * 60 * 60 * 24
+                    ? 'bg-yellow-600 text-yellow-100'
+                    : 'bg-green-700 text-green-100';
+            }
+            return {
+                ...task,
+                isCompletedForToday,
+                daysCompleted,
+                isOverdue,
+                timeRemaining,
+                urgencyColor,
+            };
+        });
+        return NextResponse.json(successResponse(processed).json);
+    } catch (error) {
+        logError('GET', error);
+        return NextResponse.json(errorResponse('Failed to fetch tasks', 500).json, { status: 500 });
+    }
+}
 
+// --- POST: Create New Task ---
+export async function POST(request) {
+    try {
+        await ensureDB();
+        const { type, task } = await request.json();
+        const today = normalizeToMidnight();
         const newTask = new Task({
             title: task.title,
             type,
@@ -68,157 +114,101 @@ export async function POST(request) {
             status: 'pending',
             createdAt: new Date(),
             updatedAt: new Date(),
-            // Initialize non-negotiable task fields if applicable
             ...(type === 'nonNegotiable' && {
                 lastResetDate: today,
-                dailyTracking: [{
-                    date: today,
-                    completed: false
-                }]
+                dailyTracking: [{ date: today, completed: false }]
             })
         });
-
         await newTask.save();
-        return NextResponse.json(newTask);
+        return NextResponse.json(successResponse(newTask).json);
     } catch (error) {
-        console.error('Error creating task:', error);
-        return NextResponse.json(
-            { error: 'Failed to create task' },
-            { status: 500 }
-        );
+        logError('POST', error);
+        return NextResponse.json(errorResponse('Failed to create task', 500).json, { status: 500 });
     }
 }
 
-// PUT route to update task
+// --- PUT: Update Task ---
 export async function PUT(request) {
     try {
-        await connectDB();
+        await ensureDB();
         const { type, taskId, status } = await request.json();
+        if (!taskId) {
+            return NextResponse.json(errorResponse('Task ID is required', 400).json, { status: 400 });
+        }
 
         if (type === 'nonNegotiable') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            // First check if the task exists and get its current state
+            const today = normalizeToMidnight();
             const task = await Task.findById(taskId);
             if (!task) {
-                return NextResponse.json(
-                    { error: 'Task not found' },
-                    { status: 404 }
-                );
+                return NextResponse.json(errorResponse('Task not found', 404).json, { status: 404 });
             }
-
-            // Check if we need to initialize or update today's tracking
+            // Find today's tracking entry
             const todayTracking = task.dailyTracking?.find(
-                track => new Date(track.date).getTime() === today.getTime()
+                track => normalizeToMidnight(track.date).getTime() === today.getTime()
             );
-
             let updateOperation;
             if (!todayTracking) {
-                // If no tracking exists for today, add a new entry
+                // Add new entry for today
                 updateOperation = {
-                    $push: {
-                        dailyTracking: {
-                            date: today,
-                            completed: true
-                        }
-                    },
-                    $set: {
-                        lastResetDate: today,
-                        updatedAt: new Date()
-                    }
+                    $push: { dailyTracking: { date: today, completed: true } },
+                    $set: { lastResetDate: today, updatedAt: new Date() }
                 };
             } else {
-                // Update existing tracking for today
+                // Update today's entry
                 updateOperation = {
-                    $set: {
-                        'dailyTracking.$[elem].completed': true,
-                        updatedAt: new Date()
-                    }
+                    $set: { 'dailyTracking.$[elem].completed': true, updatedAt: new Date() }
                 };
             }
-
             const updatedTask = await Task.findByIdAndUpdate(
                 taskId,
                 updateOperation,
                 {
-                    arrayFilters: todayTracking ? [{ 
-                        'elem.date': today 
-                    }] : undefined,
+                    arrayFilters: todayTracking ? [{ 'elem.date': today }] : undefined,
                     new: true
                 }
             );
-            
-            return NextResponse.json(updatedTask);
+            return NextResponse.json(successResponse(updatedTask).json);
         }
 
-        // Handle regular task updates
+        // Regular task update
         const updatedTask = await Task.findByIdAndUpdate(
             taskId,
-            {
-                status,
-                updatedAt: new Date()
-            },
+            { status, updatedAt: new Date() },
             { new: true }
         );
-
         if (!updatedTask) {
-            return NextResponse.json(
-                { error: 'Task not found' },
-                { status: 404 }
-            );
+            return NextResponse.json(errorResponse('Task not found', 404).json, { status: 404 });
         }
-
         // Update performance after task update
         try {
-            const { updatePerformance } = await import("@/config/updatePerformance");
+            const { updatePerformance } = await import('@/config/updatePerformance');
             await updatePerformance('task', status, { taskId });
         } catch (perfErr) {
-            console.error('Failed to update performance:', perfErr);
+            logError('PUT (updatePerformance)', perfErr);
         }
-
-        return NextResponse.json(updatedTask);
+        return NextResponse.json(successResponse(updatedTask).json);
     } catch (error) {
-        console.error('Error updating task:', error);
-        return NextResponse.json(
-            { error: 'Failed to update task' },
-            { status: 500 }
-        );
+        logError('PUT', error);
+        return NextResponse.json(errorResponse('Failed to update task', 500).json, { status: 500 });
     }
 }
 
-// DELETE route to remove task
+// --- DELETE: Remove Task ---
 export async function DELETE(request) {
     try {
-        await connectDB();
+        await ensureDB();
         const { searchParams } = new URL(request.url);
-        console.log(searchParams);
         const taskId = searchParams.get('id');
-        console.log(taskId);
-        
-
         if (!taskId) {
-            return NextResponse.json(
-                { error: 'Task ID is required' },
-                { status: 400 }
-            );
+            return NextResponse.json(errorResponse('Task ID is required', 400).json, { status: 400 });
         }
-
         const deletedTask = await Task.findByIdAndDelete(taskId);
-
         if (!deletedTask) {
-            return NextResponse.json(
-                { error: 'Task not found' },
-                { status: 404 }
-            );
+            return NextResponse.json(errorResponse('Task not found', 404).json, { status: 404 });
         }
-
-        return NextResponse.json({ message: 'Task deleted successfully' });
+        return NextResponse.json(successResponse({ message: 'Task deleted successfully' }).json);
     } catch (error) {
-        console.error('Error deleting task:', error);
-        return NextResponse.json(
-            { error: 'Failed to delete task' },
-            { status: 500 }
-        );
+        logError('DELETE', error);
+        return NextResponse.json(errorResponse('Failed to delete task', 500).json, { status: 500 });
     }
 }

@@ -19,15 +19,10 @@ const ProjectCard = ({ project, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const currentModule = project.modules?.find(m => m.status !== 'Completed') || project.modules?.[0];
+  // Use derived fields from backend
+  const currentModule = project.currentModule;
+  // Remove calculateDaysRemaining and use project.daysRemaining
   
-  const calculateDaysRemaining = useCallback((deadline) => {
-    const today = new Date();
-    const deadlineDate = new Date(deadline);
-    const diffTime = deadlineDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }, []);
   const updateProgress = useCallback(async (projectId, moduleIndex, taskIndex, isChecked) => {
     try {
       setIsLoading(true);
@@ -153,10 +148,10 @@ const ProjectCard = ({ project, onEdit, onDelete }) => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-300">Deadline:</span>
-              <span className={`${calculateDaysRemaining(project.deadline) < 7 ? 'text-red-500' : 'text-gray-900 dark:text-gray-100'} transition-colors`}>
+              <span className={`${project.daysRemaining < 7 ? 'text-red-500' : 'text-gray-900 dark:text-gray-100'} transition-colors`}>
                 {format(new Date(project.deadline), 'MMM dd, yyyy')}
                 <span className="ml-2 text-xs">
-                  ({calculateDaysRemaining(project.deadline)} days left)
+                  ({project.daysRemaining} days left)
                 </span>
               </span>
             </div>

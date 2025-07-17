@@ -53,13 +53,8 @@ const TodoPage = () => {
     }
   };
 
-  const isCompletedForToday = task => {
-    const today = new Date().setHours(0, 0, 0, 0);
-    return task.dailyTracking?.some(d => new Date(d.date).setHours(0, 0, 0, 0) === today && d.completed);
-  };
-
   const renderTaskCard = (type, task, index) => {
-    const completedToday = isCompletedForToday(task);
+    const completedToday = task.isCompletedForToday;
 
     if (type === 'deadline') {
       return (
@@ -83,7 +78,7 @@ const TodoPage = () => {
         <div className="flex items-center gap-3 flex-1">
           <span className={`text-${type === 'nonNegotiable' ? 'cyan' : 'red'}-100 ${completedToday ? 'line-through text-opacity-50' : ''}`}>{task.title}</span>
           {completedToday && <span className="text-xs text-green-400 px-2 py-1 bg-green-400/10 rounded">✓ Done today</span>}
-          {type === 'nonNegotiable' && <span className="text-xs text-gray-500">{task.dailyTracking?.filter(d => d.completed).length || 0} days completed</span>}
+          {type === 'nonNegotiable' && <span className="text-xs text-gray-500">{task.daysCompleted || 0} days completed</span>}
         </div>
         <div className="flex items-center gap-2">
           {!completedToday && (
@@ -167,15 +162,10 @@ export default TodoPage;
 const DeadlineTaskCard = ({ task, onComplete, onDelete, loadingTaskId }) => {
   const [completed, setCompleted] = useState(false);
 
-  const deadlineDate = new Date(task.deadline);
-  const isOverdue = isBefore(deadlineDate, new Date());
-  const timeRemaining = formatDistanceToNow(deadlineDate, { addSuffix: true });
-
-  const urgencyColor = isOverdue
-    ? 'bg-red-800 text-red-100'
-    : deadlineDate.getTime() - Date.now() < 1000 * 60 * 60 * 24
-    ? 'bg-yellow-600 text-yellow-100'
-    : 'bg-green-700 text-green-100';
+  // Use derived fields from backend
+  const isOverdue = task.isOverdue;
+  const timeRemaining = task.timeRemaining;
+  const urgencyColor = task.urgencyColor;
 
   const toggleLocalComplete = () => setCompleted(!completed);
 

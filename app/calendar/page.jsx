@@ -1,5 +1,5 @@
 "use client"
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,6 +13,7 @@ import {
   ArcElement
 } from 'chart.js'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
+import PerformanceChart from "@/components/ui/PerformanceChart";
 
 // Register ChartJS components
 ChartJS.register(
@@ -33,270 +34,48 @@ ChartJS.defaults.scale.grid.color = '#374151' // grid lines
 ChartJS.defaults.borderColor = '#4B5563' // borders
 
 const Calendar = () => {
-  // Dummy data for performance tracking
-  const performanceData = {
-    basicInputs: [
-      {
-        date: new Date('2025-06-19'),
-        wakeUpTime: '06:30',
-        meditationDuration: 20,
-        timeWastedRandomly: 45,
-        lastUpdated: new Date('2025-06-19T08:00:00')
-      },
-      {
-        date: new Date('2025-06-18'),
-        wakeUpTime: '07:00',
-        meditationDuration: 15,
-        timeWastedRandomly: 60,
-        lastUpdated: new Date('2025-06-18T09:30:00')
-      },
-      {
-        date: new Date('2025-06-17'),
-        wakeUpTime: '06:45',
-        meditationDuration: 25,
-        timeWastedRandomly: 30,
-        lastUpdated: new Date('2025-06-17T07:45:00')
-      },
-      {
-        date: new Date('2025-06-16'),
-        wakeUpTime: '06:15',
-        meditationDuration: 30,
-        timeWastedRandomly: 40,
-        lastUpdated: new Date('2025-06-16T08:15:00')
-      },
-      {
-        date: new Date('2025-06-15'),
-        wakeUpTime: '07:30',
-        meditationDuration: 15,
-        timeWastedRandomly: 75,
-        lastUpdated: new Date('2025-06-15T09:00:00')
-      },
-      {
-        date: new Date('2025-06-14'),
-        wakeUpTime: '06:45',
-        meditationDuration: 20,
-        timeWastedRandomly: 35,
-        lastUpdated: new Date('2025-06-14T08:30:00')
-      },
-      {
-        date: new Date('2025-06-13'),
-        wakeUpTime: '06:30',
-        meditationDuration: 25,
-        timeWastedRandomly: 50,
-        lastUpdated: new Date('2025-06-13T07:30:00')
-      },
-      {
-        date: new Date('2025-06-12'),
-        wakeUpTime: '07:15',
-        meditationDuration: 15,
-        timeWastedRandomly: 65,
-        lastUpdated: new Date('2025-06-12T08:45:00')
-      },
-      {
-        date: new Date('2025-06-11'),
-        wakeUpTime: '06:00',
-        meditationDuration: 30,
-        timeWastedRandomly: 30,
-        lastUpdated: new Date('2025-06-11T07:00:00')
-      },
-      {
-        date: new Date('2025-06-10'),
-        wakeUpTime: '06:45',
-        meditationDuration: 20,
-        timeWastedRandomly: 45,
-        lastUpdated: new Date('2025-06-10T08:15:00')
-      },
-      {
-        date: new Date('2025-06-09'),
-        wakeUpTime: '07:00',
-        meditationDuration: 15,
-        timeWastedRandomly: 55,
-        lastUpdated: new Date('2025-06-09T08:30:00')
-      },
-      {
-        date: new Date('2025-06-08'),
-        wakeUpTime: '06:30',
-        meditationDuration: 25,
-        timeWastedRandomly: 40,
-        lastUpdated: new Date('2025-06-08T07:45:00')
-      },
-      {
-        date: new Date('2025-06-07'),
-        wakeUpTime: '07:30',
-        meditationDuration: 15,
-        timeWastedRandomly: 70,
-        lastUpdated: new Date('2025-06-07T09:00:00')
-      },
-      {
-        date: new Date('2025-06-06'),
-        wakeUpTime: '06:15',
-        meditationDuration: 30,
-        timeWastedRandomly: 35,
-        lastUpdated: new Date('2025-06-06T07:30:00')
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/calendar-data');
+        if (!res.ok) throw new Error('Failed to fetch analytics');
+        const data = await res.json();
+        setAnalytics(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-    ],
-    performanceMetrics: {
-      tasks: {
-        total: 45,
-        completed: 32,
-        pending: 13,
-        lastCompletedTask: new Date('2025-06-19T14:30:00'),
-        lastUpdatedTask: new Date('2025-06-19T16:00:00'),
-        byType: {
-          deadline: { total: 15, completed: 11 },
-          nonNegotiable: { total: 20, completed: 16 },
-          procrastinating: { total: 10, completed: 5 }
-        },
-        weeklyCompletion: {
-          'Mon': 5,
-          'Tue': 4,
-          'Wed': 6,
-          'Thu': 4,
-          'Fri': 3,
-          'Sat': 2,
-          'Sun': 3
-        }
-      },
-      dailyStats: {
-        averageWakeUpTime: '06:45',
-        averageMeditationTime: 21,
-        averageTimeWasted: 48,
-        consistencyScore: 82, // percentage
-        lastWeekImprovement: 12 // percentage
-      }
-    }
+    };
+    fetchAnalytics();
+  }, []);
+
+  if (loading) {
+    return <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Loading...</p></main>;
+  }
+  if (error) {
+    return <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>Error: {error}</p></main>;
+  }
+  if (!analytics) {
+    return <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center"><p>No data available</p></main>;
   }
 
-  // Dummy performance history for stock-like chart
-  const performanceHistory = [
-    { date: '2025-06-10', value: 10 },
-    { date: '2025-06-11', value: 15 },
-    { date: '2025-06-12', value: 12 },
-    { date: '2025-06-13', value: 12 },
-    { date: '2025-06-14', value: 11 },
-    { date: '2025-06-15', value: 13 },
-    { date: '2025-06-16', value: 12 },
-    { date: '2025-06-17', value: 17 },
-    { date: '2025-06-18', value: 21 },
-    { date: '2025-06-19', value: 19 },
-  ];
+  const {
+    wakeUpTimeChart,
+    dailyActivitiesChart,
+    taskDistributionChart,
+    perfHistoryChart,
+    weeklyTaskCompletion,
+    summaryStats
+  } = analytics;
 
-  const { basicInputs, performanceMetrics } = performanceData
-
-  // Prepare data for Wake-up Time Trend
-  const wakeUpTimes = basicInputs.map(entry => {
-    const [hours, minutes] = entry.wakeUpTime.split(':')
-    return parseFloat(hours) + parseFloat(minutes) / 60
-  })
-
-  const dates = basicInputs.map(entry => {
-    return new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  })
-
-  const wakeUpTimeChart = {
-    labels: dates,
-    datasets: [
-      {
-        label: 'Wake-up Time',
-        data: wakeUpTimes,
-        borderColor: 'rgb(37, 99, 235)', // blue-600
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-        tension: 0.1,
-        fill: true,
-      },
-    ],
-  }
-
-  // Prepare data for Daily Activities
-  const dailyActivitiesChart = {
-    labels: dates,
-    datasets: [
-      {
-        label: 'Meditation (minutes)',
-        data: basicInputs.map(entry => entry.meditationDuration),
-        backgroundColor: 'rgba(139, 92, 246, 0.5)', // violet-500
-      },
-      {
-        label: 'Time Wasted (minutes)',
-        data: basicInputs.map(entry => entry.timeWastedRandomly),
-        backgroundColor: 'rgba(239, 68, 68, 0.5)', // red-500
-      },
-    ],
-  }
-
-  // Prepare data for Task Distribution
-  const taskDistributionChart = {
-    labels: ['Completed', 'Pending'],
-    datasets: [
-      {
-        data: [performanceMetrics.tasks.completed, performanceMetrics.tasks.pending],
-        backgroundColor: [
-          'rgba(34, 197, 94, 0.5)', // green-500
-          'rgba(239, 68, 68, 0.5)', // red-500
-        ],
-        borderColor: [
-          'rgba(34, 197, 94, 1)',
-          'rgba(239, 68, 68, 1)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  }
-
-  // Prepare data for Stock Market-like Performance Chart
-  const perfHistoryLabels = performanceHistory.map(entry =>
-    new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  );
-  const perfHistoryValues = performanceHistory.map(entry => entry.value);
-
-  const perfHistoryChart = {
-    labels: perfHistoryLabels,
-    datasets: [
-      {
-        label: 'Performance (Stock Style)',
-        data: perfHistoryValues,
-        borderColor: perfHistoryValues[perfHistoryValues.length-1] >= perfHistoryValues[0] ? 'rgb(34,197,94)' : 'rgb(239,68,68)', // green if up, red if down
-        backgroundColor: perfHistoryValues[perfHistoryValues.length-1] >= perfHistoryValues[0] ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-        fill: true,
-        tension: 0.2,
-        pointRadius: 0,
-        borderWidth: 3,
-      },
-    ],
-  };
-
-  const perfHistoryOptions = {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      title: {
-        display: true,
-        text: '📈 Performance Over Time (Stock Chart)',
-        color: '#E5E7EB',
-        font: { family: "'Inter', sans-serif", size: 18, weight: 'bold' },
-      },
-      tooltip: {
-        callbacks: {
-          label: (context) => `Score: ${context.parsed.y}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: { color: '#374151' },
-        ticks: { color: '#E5E7EB' },
-      },
-      y: {
-        grid: { color: '#374151' },
-        ticks: { color: '#E5E7EB' },
-        beginAtZero: false,
-      },
-    },
-    elements: {
-      line: { borderJoinStyle: 'round' },
-    },
-  };
-
+  // Chart options (same as before)
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -318,7 +97,7 @@ const Calendar = () => {
         }
       }
     }
-  }
+  };
 
   const lineOptions = {
     ...chartOptions,
@@ -355,7 +134,7 @@ const Calendar = () => {
         }
       }
     }
-  }
+  };
 
   const barOptions = {
     ...chartOptions,
@@ -386,18 +165,17 @@ const Calendar = () => {
         }
       }
     }
-  }
+  };
 
   return (
     <main className="min-h-screen bg-gray-900 text-white py-8">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-10">
+          <PerformanceChart />
+        </div>
         <h1 className="text-3xl font-bold text-blue-300 mb-8">📊 Performance Analytics</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Stock Market-like Performance Chart */}
-          <div className="col-span-1 lg:col-span-2 bg-gray-800 rounded-xl shadow-lg p-6 border border-green-600">
-            <Line data={perfHistoryChart} options={perfHistoryOptions} height={80} />
-          </div>
           {/* Wake-up Time Trend */}
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-blue-600">
             <Line data={wakeUpTimeChart} options={lineOptions} />
@@ -429,16 +207,7 @@ const Calendar = () => {
           {/* Weekly Task Completion */}
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-yellow-600">
             <Bar 
-              data={{
-                labels: Object.keys(performanceMetrics.tasks.weeklyCompletion),
-                datasets: [{
-                  label: 'Tasks Completed',
-                  data: Object.values(performanceMetrics.tasks.weeklyCompletion),
-                  backgroundColor: 'rgba(234, 179, 8, 0.5)', // yellow-500
-                  borderColor: 'rgba(234, 179, 8, 1)',
-                  borderWidth: 1,
-                }]
-              }}
+              data={weeklyTaskCompletion}
               options={{
                 ...barOptions,
                 plugins: {
@@ -457,19 +226,19 @@ const Calendar = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-blue-600">
             <h3 className="text-lg font-semibold text-blue-300 mb-2">Consistency Score</h3>
-            <p className="text-3xl font-bold text-blue-400">{performanceMetrics.dailyStats.consistencyScore}%</p>
+            <p className="text-3xl font-bold text-blue-400">{summaryStats.consistencyScore}%</p>
           </div>
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-green-600">
             <h3 className="text-lg font-semibold text-green-300 mb-2">Average Wake-up</h3>
-            <p className="text-3xl font-bold text-green-400">{performanceMetrics.dailyStats.averageWakeUpTime}</p>
+            <p className="text-3xl font-bold text-green-400">{summaryStats.averageWakeUpTime}</p>
           </div>
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-violet-600">
             <h3 className="text-lg font-semibold text-violet-300 mb-2">Avg. Meditation</h3>
-            <p className="text-3xl font-bold text-violet-400">{performanceMetrics.dailyStats.averageMeditationTime}min</p>
+            <p className="text-3xl font-bold text-violet-400">{summaryStats.averageMeditationTime}min</p>
           </div>
           <div className="bg-gray-800 rounded-xl shadow-lg p-6 border border-yellow-600">
             <h3 className="text-lg font-semibold text-yellow-300 mb-2">Weekly Improvement</h3>
-            <p className="text-3xl font-bold text-yellow-400">+{performanceMetrics.dailyStats.lastWeekImprovement}%</p>
+            <p className="text-3xl font-bold text-yellow-400">+{summaryStats.lastWeekImprovement}%</p>
           </div>
         </div>
       </div>

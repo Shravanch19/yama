@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Add_Learning from "./learningModal";
 import LearningDetailModal from "./learningDetailModal";
 
@@ -34,21 +34,6 @@ const LearningUI = () => {
         fetchLearnings();
     }, []);
 
-    const learningList = useMemo(() => (
-        learningData.map((learning) => {
-            const completedChapters = learning.completedChapters || 0;
-            const progress = Math.round((completedChapters / learning.NoOfChapters) * 100) || 0;
-
-            return {
-                ...learning,
-                completedChapters,
-                progressPercent: progress,
-                stage: learning.status || (progress === 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started"),
-                id: learning._id,
-            };
-        })
-    ), [learningData]);
-
     const handleUpdateProgress = async (learning) => {
         try {
             const response = await fetch(`/api/learnings`, {
@@ -74,7 +59,7 @@ const LearningUI = () => {
                     <h2 className="text-3xl font-bold text-blue-300">Learnings</h2>
                     {!loading && !error && (
                         <p className="text-blue-400 text-sm mt-1">
-                            {learningList.length} {learningList.length === 1 ? 'course' : 'courses'} in progress
+                            {learningData.length} {learningData.length === 1 ? 'course' : 'courses'} in progress
                         </p>
                     )}
                 </div>
@@ -95,14 +80,14 @@ const LearningUI = () => {
                         Try again
                     </button>
                 </div>
-            ) : learningList.length === 0 ? (
+            ) : learningData.length === 0 ? (
                 <div className="text-center py-10 bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-600">
                     <h3 className="text-xl font-medium text-gray-400 mb-2">No learning courses yet</h3>
                     <p className="text-gray-500 mb-4">Start by adding your first learning course!</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {learningList.map((learning) => (
+                    {learningData.map((learning) => (
                         <div
                             key={learning._id}
                             className="bg-gray-700 p-5 rounded-xl border border-gray-600 hover:border-blue-500 transition-all duration-200"
